@@ -43,7 +43,7 @@
 #define OE 5   //  24  //  18
 #define WE 4   //  23  //  16
 
-#define NUM_ADDRESS_PINS 13
+#define NUM_ADDRESS_PINS 16
 #define NUM_DATA_PINS 8
 
 int address[NUM_ADDRESS_PINS];
@@ -51,6 +51,9 @@ int data[NUM_DATA_PINS];
 int loggingLevel = WARNING;
 
 int main(int argc, char *argv[]){
+	enum FILE_TYPE {TEXT_FILE,BINARY_FILE};
+	enum APP_FUNCTIONS {WRITE_FILE_TO_ROM,COMPARE_ROM_TO_FILE,DUMP_ROM};
+
 	FILE *romFile;
 	char *filename;
 	long limit = -1;
@@ -63,7 +66,6 @@ int main(int argc, char *argv[]){
 	// TODO: Handle device type -t --type
 	// TODO: Add serial device support -p --parallel -s --serial
 	// TODO: Support start value for text files
-	// TODO: Allow 2 byte addresses in text file
 
 	// BUG: Make flags idempotent
 
@@ -191,40 +193,49 @@ int main(int argc, char *argv[]){
 
 /* Open and write a text file to Memory */
 int writeTextFileToEEPROM(FILE *memoryFile,int validate, unsigned long limit){
-	int addressMaxLenth = 8;
-	int dataMaxLenth = 8;
+
 	int counter = 0;
 	
-	char textFileAddress[addressMaxLenth+1];
-	char textFiledata[dataMaxLenth+1];
+	char textFileAddress[NUM_ADDRESS_PINS+1];
+	char textFiledata[NUM_DATA_PINS+1];
 	int c;
 	int err = 0;
+	int haveNotReachedSeparator = 1;
 	int addressLength = 0;
 	int dataLength = 0;
 	int byteWriteCounter = 0;
 
-	textFileAddress[addressMaxLenth] = 0;
-	textFiledata[dataMaxLenth] = 0;
+	textFileAddress[NUM_ADDRESS_PINS] = 0;
+	textFiledata[NUM_DATA_PINS] = 0;
 
 	while( ((c = fgetc(memoryFile)) != EOF ) && counter < limit){
 		if (c != '\n'){
-			if (addressLength < addressMaxLenth){
+			if ((addressLength < NUM_ADDRESS_PINS) && (haveNotReachedSeparator) ){
 				if(c == '1' || c == '0'){
 					textFileAddress[addressLength++] = c;
+				} else if (c == ' '){
+					haveNotReachedSeparator = 0;
 				}
 			} else {
-				if (dataLength < dataMaxLenth){
+				if (dataLength < NUM_DATA_PINS){
 					if(c == '1' || c == '0'){
 						textFiledata[dataLength++] = c;
 					}
 				}
 			}
 		} else {
+			if (addressLength < NUM_ADDRESS_PINS){
+				for(int i = addressLength-1,j=NUM_ADDRESS_PINS-1;i>=0;i--,j--){
+					textFileAddress[j]= textFileAddress[i];
+					textFileAddress[i] = '0';
+				}
+			}
 			// ulog(DEBUG,"Writing to File %s  %s",textFileAddress,textFiledata);
 			// ulog(DEBUG,"Writing to File %i  %i",binStr2num(textFileAddress),binStr2num(textFiledata));
 			err = writeByteToAddress(binStr2num(textFileAddress),binStr2num(textFiledata),validate,&byteWriteCounter);
 			addressLength = 0;
 			dataLength = 0;
+			haveNotReachedSeparator = 1;
 			counter++;
 		}
 	}
@@ -235,33 +246,41 @@ int writeTextFileToEEPROM(FILE *memoryFile,int validate, unsigned long limit){
 int compareTextFileToEEPROM(FILE *memoryFile, unsigned long limit){
 	int addressToCompare = 0, dataToCompare = 0, err = 0;
 
-	int addressMaxLenth = 8;
-	int dataMaxLenth = 8;
 	int counter = 0;
 	
-	char textFileAddress[addressMaxLenth+1];
-	char textFiledata[dataMaxLenth+1];
+	char textFileAddress[NUM_ADDRESS_PINS+1];
+	char textFiledata[NUM_DATA_PINS+1];
 	int c;
+	int haveNotReachedSeparator = 1;
 	int addressLength = 0;
 	int dataLength = 0;
 
-	textFileAddress[addressMaxLenth] = 0;
-	textFiledata[dataMaxLenth] = 0;
+	textFileAddress[NUM_ADDRESS_PINS] = 0;
+	textFiledata[NUM_DATA_PINS] = 0;
 
-	while( ((c = fgetc(memoryFile)) != EOF ) && counter < limit){
+	while( ((c = fgetc(memoryFile)) != EOF ) && (counter < limit)){
 		if (c != '\n'){
-			if (addressLength < addressMaxLenth){
+			if ((addressLength < NUM_ADDRESS_PINS) && (haveNotReachedSeparator) ){
 				if(c == '1' || c == '0'){
 					textFileAddress[addressLength++] = c;
+				} else if (c == ' '){
+					haveNotReachedSeparator = 0;
 				}
 			} else {
-				if (dataLength < dataMaxLenth){
+				if (dataLength < NUM_DATA_PINS){
 					if(c == '1' || c == '0'){
 						textFiledata[dataLength++] = c;
 					}
 				}
 			}
 		} else {
+			if (addressLength < NUM_ADDRESS_PINS){
+				for(int i = addressLength-1,j=NUM_ADDRESS_PINS-1;i>=0;i--,j--){
+					textFileAddress[j]= textFileAddress[i];
+					textFileAddress[i] = '0';
+
+				}
+			}
 			addressToCompare  = binStr2num(textFileAddress);
 			dataToCompare = binStr2num(textFiledata);
 			if (readByteFromAddress(addressToCompare) != dataToCompare){
@@ -271,6 +290,7 @@ int compareTextFileToEEPROM(FILE *memoryFile, unsigned long limit){
 			}
 			addressLength = 0;
 			dataLength = 0;
+			haveNotReachedSeparator = 1;
 			counter++;
 		}
 	}
@@ -407,12 +427,12 @@ char *num2binStr(char *binStrBuf, int num, int strBufLen){
 }
 
 /* Converts a binary string to a number. Will skip characters that are not '1' or '0' */
-int binStr2num(char *binStr){
+int binStr2num(const char *binStr){
 	int num = 0, num_size = 0;
-	for (int i=strlen(binStr)-1,j=0;i>=0;i--){
+	for (int i=strlen(binStr)-1,j=0;i>=0;i--,j++){
 		if (binStr[i] == '1' || binStr[i] == '0'){
 			if (num_size < strlen(binStr) && num_size < 32){
-				num += (binStr[i]-48)*(1 << j++);
+				num += (binStr[i]-48)*(1 << j);
 				num_size++;
 			} else {
 				ulog(ERROR,"Number out of Range");
@@ -611,16 +631,19 @@ void printROMContents(long begin,long limit,int format){
 		}
 		break;
 	case 2: // text
-		for (int i=begin;i<limit;i++)
-		{
-			char addressBinStr[9];
-			int  addressBinStrLen = sizeof(addressBinStr)/sizeof(addressBinStr[0])-1;
-			char dataBinStr[9];
-			int  dataBinStrLen = sizeof(dataBinStr)/sizeof(dataBinStr[0])-1;
+		for (int i=begin;i<limit;i++) {
+			char addressBinStr[NUM_ADDRESS_PINS+1];
+			char dataBinStr[NUM_DATA_PINS+1];
 
-			num2binStr(addressBinStr,i,addressBinStrLen);
-			num2binStr(dataBinStr,readByteFromAddress(i),dataBinStrLen);
-			printf("%s %s \n",addressBinStr,dataBinStr);
+			num2binStr(addressBinStr,i,NUM_ADDRESS_PINS);
+			num2binStr(dataBinStr,readByteFromAddress(i),NUM_DATA_PINS);
+			if ( begin < 0x100 && limit < 0x100){
+				char shortAddressBinStr[9];
+				strncpy(shortAddressBinStr,&addressBinStr[8],8);
+				printf("%s %s \n", shortAddressBinStr,dataBinStr);
+			} else {
+				printf("%s %s \n",addressBinStr,dataBinStr);
+			}
 		}
 		break;
 	case 3: // pretty

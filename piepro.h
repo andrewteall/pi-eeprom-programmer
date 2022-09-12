@@ -5,16 +5,13 @@ enum LOGLEVEL {OFF,FATAL,ERROR,WARNING,INFO,DEBUG};
 const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG",};
 #endif
 
-enum FILE_TYPE {TEXT_FILE,BINARY_FILE};
-enum APP_FUNCTIONS {WRITE_FILE_TO_ROM,COMPARE_ROM_TO_FILE,DUMP_ROM};
-
 int init(void);
 void printHelp(void);
 void printROMContents(long,long,int);
 char *num2binStr(char*,int,int) ;
 void setAddressPins(unsigned short);
 char readByteFromAddress(unsigned short);
-int binStr2num(char*);
+int binStr2num(const char*);
 int writeByteToAddress(unsigned short, char, char,int*);
 void setDataPins(char);
 void backupWriter(char*);
