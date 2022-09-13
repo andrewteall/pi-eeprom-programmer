@@ -85,14 +85,9 @@ int main(int argc, char *argv[]){
 				}
 			}
 
-			// -b --binary -t --text
-			if (!strcmp(argv[i],"-t") || !strcmp(argv[i],"--text")){
-				ulog(INFO,"Setting filetype to text");
-				// action = WRITE_FILE_TO_ROM;
-				fileType = TEXT_FILE;
-			} else if (!strcmp(argv[i],"-b") || !strcmp(argv[i],"--binary")){
+			// -b --binary 
+			if (!strcmp(argv[i],"-b") || !strcmp(argv[i],"--binary")){
 				ulog(INFO,"Setting filetype to binary");
-				// action = WRITE_FILE_TO_ROM;
 				fileType = BINARY_FILE;
 			}
 
@@ -553,15 +548,14 @@ int init(int romType,struct Pins *pins){
 void printHelp(){
 	printf("Usage: piepro [options] [file]\n");
 	printf("Options:\n");
-	printf(" -b,   --binary			Interpret file as a binary.\n");
+	printf(" -b,   --binary			Interpret file as a binary. Default: text\n");
 	printf(" -c,   --compare		Compare file and EEPROM and print differences.\n");
 	printf(" -d N,   --dump N		Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
 	printf(" -h,   --help			Print this message and exit.\n");
 	printf(" -l N, --limit N		Specify the maximum address to operate.\n");
 	printf("       --no-validate-write	Do not perform a read directly after writing to verify the data was written.\n");
-	printf(" -rt type, --romtype type	Specify EERPOM device type. Default: AT28C16.\n");
+	printf(" -rt TYPE, --romtype TYPE	Specify EERPOM device type. Default: AT28C16.\n");
 	printf(" -s N, --start N		Specify the minimum address to operate.\n");
-	printf(" -t,   --text			Interpret file as text.\n");
 	printf("					Text File format:\n");
 	printf("					00000000 00000000\n");
 	printf(" -v N, --v[vvvv]		Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
