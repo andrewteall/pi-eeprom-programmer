@@ -1,5 +1,4 @@
-// FIXME: Change NUM_ADDRESS_PINS to 15
-#define NUM_ADDRESS_PINS 16
+#define NUM_ADDRESS_PINS 15
 #define NUM_DATA_PINS 8
 #define NUM_CONTROL_PINS 3
 

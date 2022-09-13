@@ -592,10 +592,10 @@ void printROMContents(struct Pins* pins, long begin,long limit,int format){
 		break;
 	case 2: // text
 		for (int i=begin;i<limit;i++) {
-			char addressBinStr[NUM_ADDRESS_PINS+1];
+			char addressBinStr[NUM_ADDRESS_PINS+2];
 			char dataBinStr[NUM_DATA_PINS+1];
 
-			num2binStr(addressBinStr,i,NUM_ADDRESS_PINS);
+			num2binStr(addressBinStr,i,NUM_ADDRESS_PINS+1);
 			num2binStr(dataBinStr,readByteFromAddress(pins,i),NUM_DATA_PINS);
 			if ( begin < 0x100 && limit < 0x100){
 				char shortAddressBinStr[9];
