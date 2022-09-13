@@ -30,7 +30,6 @@ char readByteFromAddress(struct Eeprom*,unsigned short);
 int binStr2num(const char*);
 int writeByteToAddress(struct Eeprom*,unsigned short, char, char,int*);
 void setDataPins(struct Eeprom*,char);
-void backupWriter(char*);
 int str2num(char*);
 long expo(int, int);
 
