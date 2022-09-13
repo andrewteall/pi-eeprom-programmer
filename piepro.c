@@ -31,7 +31,6 @@ int main(int argc, char *argv[]){
 	// TODO: Add serial device support -p --parallel -s --serial
 	// TODO: Support start value for text files
 
-	// BUG: Make flags idempotent
 
 	if (argc == 1){
 		printHelp();
@@ -93,9 +92,13 @@ int main(int argc, char *argv[]){
 
 			// -d --dump
 			if (!strcmp(argv[i],"-d") || !strcmp(argv[i],"--dump")){
-				ulog(INFO,"Dumping ROM to standard out");
-				dumpFormat = str2num(argv[i+1]);
-				action = DUMP_ROM;
+				if (action == COMPARE_ROM_TO_FILE){
+					ulog(WARNING,"-d or --dump flag specified but -c or --compare has already be set. Ignoring -d or --dump flag.");
+				} else {
+					ulog(INFO,"Dumping ROM to standard out");
+					dumpFormat = str2num(argv[i+1]);
+					action = DUMP_ROM;
+				}
 			}
 
 			// --no-validate-write
@@ -106,8 +109,12 @@ int main(int argc, char *argv[]){
 
 			// -c --compare
 			if (!strcmp(argv[i],"-c") || !strcmp(argv[i],"--compare")){
-				ulog(INFO,"Comparing ROM to File");
-				action = COMPARE_ROM_TO_FILE;
+				if (action == DUMP_ROM){
+					ulog(WARNING,"-c or --compare flag specified but -d or --dump has already be set. Ignoring -c or --compare flag.");
+				} else {
+					ulog(INFO,"Comparing ROM to File");
+					action = COMPARE_ROM_TO_FILE;
+				}
 			}
 
 			// -rt --romtype
