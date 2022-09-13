@@ -34,7 +34,7 @@ int main(int argc, char *argv[]){
 
 	if (argc == 1){
 		printHelp();
-		return 1;
+		return 0;
 	} else {
 		filename = argv[argc-1];
 		for(int i=argc-1;i>0;i--){
