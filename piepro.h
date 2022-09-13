@@ -1,6 +1,5 @@
 #define NUM_ADDRESS_PINS 15
 #define NUM_DATA_PINS 8
-#define NUM_CONTROL_PINS 3
 
 #ifndef ULOG_H
 #define ULOG_H
@@ -9,8 +8,8 @@ enum LOGLEVEL {OFF,FATAL,ERROR,WARNING,INFO,DEBUG};
 const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG",};
 #endif
 
-enum ROM_TYPE {AT28C16,AT28C64,AT28C256};
-const char *ROMTYPESTRINGS[] = {"at28c16","at28c64","at28c256"};
+enum EEPROM_TYPE {AT28C16,AT28C64,AT28C256};
+const char *EEPROMTYPESTRINGS[] = {"at28c16","at28c64","at28c256"};
 
 struct Eeprom{
     int addressPins[NUM_ADDRESS_PINS];
@@ -21,20 +20,24 @@ struct Eeprom{
     int type;
 };
 
-int init(int,struct Eeprom*);
+int init(struct Eeprom*, int);
+
+int compareBinaryFileToEEPROM(struct Eeprom*, FILE*, long, unsigned long);
+int compareTextFileToEEPROM(struct Eeprom*, FILE*,unsigned long);
+int writeTextFileToEEPROM(struct Eeprom*, FILE*, int, unsigned long);
+int writeBinaryFileToEEPROM(struct Eeprom*, FILE*, int, long, unsigned long);
+
+char readByteFromAddress(struct Eeprom*,unsigned short);
+int writeByteToAddress(struct Eeprom*,unsigned short, char, char,int*);
+
+void setDataPins(struct Eeprom*,char);
+void setAddressPins(struct Eeprom*,unsigned short);
+
 void printHelp(void);
 void printROMContents(struct Eeprom*,long,long,int);
-char *num2binStr(char*,int,int) ;
-void setAddressPins(struct Eeprom*,unsigned short);
-char readByteFromAddress(struct Eeprom*,unsigned short);
+
+char *num2binStr(char*,int,int);
 int binStr2num(const char*);
-int writeByteToAddress(struct Eeprom*,unsigned short, char, char,int*);
-void setDataPins(struct Eeprom*,char);
 int str2num(char*);
+
 long expo(int, int);
-
-int compareBinaryFileToEEPROM();
-int compareTextFileToEEPROM();
-
-int writeTextFileToEEPROM();
-int writeBinaryFileToEEPROM();

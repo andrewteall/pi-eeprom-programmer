@@ -128,7 +128,7 @@ int main(int argc, char *argv[]){
 					ulog(FATAL,"Unsupported ROM type");
 					return 1;
 				}
-				ulog(INFO,"Setting rom type to %s",ROMTYPESTRINGS[romType]);
+				ulog(INFO,"Setting rom type to %s",EEPROMTYPESTRINGS[romType]);
 			}
 		}
 	}
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]){
 		ulog(FATAL,"Failed to setup Wiring Pi!");
 		return 1;
 	}
-	init(romType,&eeprom);
+	init(&eeprom, romType);
 
 	switch(action){
 		case WRITE_FILE_TO_ROM: case COMPARE_ROM_TO_FILE:
@@ -348,12 +348,7 @@ int writeByteToAddress(struct Eeprom* eeprom,unsigned short addressToWrite, char
 	digitalWrite(eeprom->outputEnablePin,HIGH);
 	// set the rpi to output on it's gpio data lines
 	for(int i=0;i<NUM_DATA_PINS;i++){
-		if ((eeprom->type == AT28C64) && ((i == 13) || (i == 14))){
-			// handle NC pins
-			pinMode(eeprom->dataPins[i], INPUT);	
-		} else {
 			pinMode(eeprom->dataPins[i], OUTPUT);
-		}
 	}
 	// Set the data eeprom to the data to be written
 	setDataPins(eeprom,dataToWrite);
@@ -383,8 +378,12 @@ void setAddressPins(struct Eeprom* eeprom,unsigned short addressToSet){
 	num2binStr(binStr,addressToSet,sizeof(binStr)/sizeof(binStr[0]));
 	char pin = NUM_ADDRESS_PINS-1;
 	for (char c = 0;c<NUM_ADDRESS_PINS;c++){
-		digitalWrite(eeprom->addressPins[pin],binStr[c]-0x30);
-		pin--;
+		if ((eeprom->type == AT28C64) && ((pin == 13) || (pin == 14))){
+			;
+		} else {
+			digitalWrite(eeprom->addressPins[pin],binStr[c]-0x30);
+			pin--;
+		}
 	}
 }
 
@@ -493,7 +492,7 @@ long expo(int base, int power){
 }
 
 /* Initialize rpi to write */
-int init(int romType,struct Eeprom *eeprom){
+int init(struct Eeprom *eeprom,int romType){
 
 	eeprom->type = romType;
 
@@ -540,18 +539,18 @@ int init(int romType,struct Eeprom *eeprom){
 	eeprom->dataPins[3] = 29; // 21 // 40
 	
 	for(int i=0;i<NUM_ADDRESS_PINS;i++){
-		pinMode(eeprom->addressPins[i], OUTPUT);
-		digitalWrite(eeprom->addressPins[i], LOW);
+		if ((eeprom->type == AT28C64) && ((i == 13) || (i == 14))){
+			// handle NC pins
+			pinMode(eeprom->addressPins[i], INPUT);	
+		} else {
+			pinMode(eeprom->addressPins[i], OUTPUT);
+			digitalWrite(eeprom->addressPins[i], LOW);
+		}
 	}
 
 	for(int i=0;i<NUM_DATA_PINS;i++){
-		if ((eeprom->type == AT28C64) && ((i == 13) || (i == 14))){
-			// handle NC pins
-			pinMode(eeprom->dataPins[i], INPUT);	
-		} else {
 			pinMode(eeprom->dataPins[i], OUTPUT);
 			digitalWrite(eeprom->dataPins[i], LOW);
-		}
 	}
 
 	pinMode(eeprom->chipEnablePin, OUTPUT);
