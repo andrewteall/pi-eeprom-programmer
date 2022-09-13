@@ -21,13 +21,12 @@ int main(int argc, char *argv[]){
 	long startValue = 0;
 	int dumpFormat = 0;
 	int validateWrite = 1;
-	struct Pins pins;
+	struct Eeprom eeprom;
 	
 	int action = WRITE_FILE_TO_ROM;
 	int fileType = TEXT_FILE;
 	int romType = AT28C16;
 
-	// TODO: Handle device type -t --type
 	// TODO: Add serial device support -p --parallel -s --serial
 	// TODO: Support start value for text files
 
@@ -139,7 +138,7 @@ int main(int argc, char *argv[]){
 		ulog(FATAL,"Failed to setup Wiring Pi!");
 		return 1;
 	}
-	init(romType,&pins);
+	init(romType,&eeprom);
 
 	switch(action){
 		case WRITE_FILE_TO_ROM: case COMPARE_ROM_TO_FILE:
@@ -152,30 +151,30 @@ int main(int argc, char *argv[]){
 
 			switch(fileType | (action<<8)){
 				case TEXT_FILE| (WRITE_FILE_TO_ROM<<8):
-					writeTextFileToEEPROM(&pins,romFile,validateWrite,limit);
+					writeTextFileToEEPROM(&eeprom,romFile,validateWrite,limit);
 					break;
 				case BINARY_FILE | (WRITE_FILE_TO_ROM<<8):
-					writeBinaryFileToEEPROM(&pins,romFile,validateWrite,startValue,limit);
+					writeBinaryFileToEEPROM(&eeprom,romFile,validateWrite,startValue,limit);
 					break;
 				case TEXT_FILE | (COMPARE_ROM_TO_FILE<<8):
-					compareTextFileToEEPROM(&pins,romFile,limit);
+					compareTextFileToEEPROM(&eeprom,romFile,limit);
 					break;
 				case BINARY_FILE | (COMPARE_ROM_TO_FILE<<8):
-					compareBinaryFileToEEPROM(&pins,romFile,startValue,limit);
+					compareBinaryFileToEEPROM(&eeprom,romFile,startValue,limit);
 					break;
 			}
 			
 			fclose(romFile);
 			break;
 		case DUMP_ROM:
-			printROMContents(&pins,startValue,limit,dumpFormat);
+			printROMContents(&eeprom,startValue,limit,dumpFormat);
 			break;
 	}
 	return 0;
 }
 
 /* Open and write a text file to Memory */
-int writeTextFileToEEPROM(struct Pins *pins, FILE *memoryFile,int validate, unsigned long limit){
+int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, unsigned long limit){
 
 	int counter = 0;
 	
@@ -215,7 +214,7 @@ int writeTextFileToEEPROM(struct Pins *pins, FILE *memoryFile,int validate, unsi
 			}
 			// ulog(DEBUG,"Writing to File %s  %s",textFileAddress,textFiledata);
 			// ulog(DEBUG,"Writing to File %i  %i",binStr2num(textFileAddress),binStr2num(textFiledata));
-			err = writeByteToAddress(pins,binStr2num(textFileAddress),binStr2num(textFiledata),validate,&byteWriteCounter);
+			err = writeByteToAddress(eeprom,binStr2num(textFileAddress),binStr2num(textFiledata),validate,&byteWriteCounter);
 			addressLength = 0;
 			dataLength = 0;
 			haveNotReachedSeparator = 1;
@@ -226,7 +225,7 @@ int writeTextFileToEEPROM(struct Pins *pins, FILE *memoryFile,int validate, unsi
 	return 0;
 }
 
-int compareTextFileToEEPROM(struct Pins *pins,FILE *memoryFile, unsigned long limit){
+int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned long limit){
 	int addressToCompare = 0, dataToCompare = 0, err = 0;
 
 	int counter = 0;
@@ -266,9 +265,9 @@ int compareTextFileToEEPROM(struct Pins *pins,FILE *memoryFile, unsigned long li
 			}
 			addressToCompare  = binStr2num(textFileAddress);
 			dataToCompare = binStr2num(textFiledata);
-			if (readByteFromAddress(pins,addressToCompare) != dataToCompare){
+			if (readByteFromAddress(eeprom,addressToCompare) != dataToCompare){
 				printf("Byte at Address 0x%02x does not match. Rom: %i File: %i\n", \
-					addressToCompare,readByteFromAddress(pins,addressToCompare),dataToCompare);
+					addressToCompare,readByteFromAddress(eeprom,addressToCompare),dataToCompare);
 				err = 1;
 			}
 			addressLength = 0;
@@ -281,7 +280,7 @@ int compareTextFileToEEPROM(struct Pins *pins,FILE *memoryFile, unsigned long li
 }
 
 /* Open and write a binary file to Memory */
-int writeBinaryFileToEEPROM(struct Pins* pins,FILE *memoryFile,int validate,long begin, unsigned long limit){
+int writeBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile,int validate,long begin, unsigned long limit){
 	int c,addressToWrite = 0,err=0;
 	int byteWriteCounter = 0;
 	int counter = 0;
@@ -291,14 +290,14 @@ int writeBinaryFileToEEPROM(struct Pins* pins,FILE *memoryFile,int validate,long
 	}
 
 	while(((c = fgetc(memoryFile)) != EOF) && addressToWrite < limit) {
-		err = writeByteToAddress(pins,addressToWrite++,c,validate,&byteWriteCounter);
+		err = writeByteToAddress(eeprom,addressToWrite++,c,validate,&byteWriteCounter);
 	}
 	ulog(INFO,"Wrote %i bytes",byteWriteCounter);
 	return err;
 }
 
 /* Compare a binary file to Rom */
-int compareBinaryFileToEEPROM(struct Pins* pins,FILE *memoryFile, long begin, unsigned long limit){
+int compareBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile, long begin, unsigned long limit){
 	int c,addressToCompare = 0, err = 0;
 
 	while (addressToCompare < begin && (fgetc(memoryFile) != EOF)){
@@ -306,9 +305,9 @@ int compareBinaryFileToEEPROM(struct Pins* pins,FILE *memoryFile, long begin, un
 	}
 
 	while(((c = fgetc(memoryFile)) != EOF) && addressToCompare < limit) {
-		if (readByteFromAddress(pins,addressToCompare) != (char)c){
+		if (readByteFromAddress(eeprom,addressToCompare) != (char)c){
 			printf("Byte at Address 0x%02x does not match. Rom: %i File: %i\n", \
-				addressToCompare,readByteFromAddress(pins,addressToCompare),c);
+				addressToCompare,readByteFromAddress(eeprom,addressToCompare),c);
 			err = 1;
 		}
 		addressToCompare++;
@@ -317,20 +316,20 @@ int compareBinaryFileToEEPROM(struct Pins* pins,FILE *memoryFile, long begin, un
 }
 
 /* Read byte from specified Address */
-char readByteFromAddress(struct Pins* pins,unsigned short addressToRead){
+char readByteFromAddress(struct Eeprom* eeprom,unsigned short addressToRead){
 	char binAdrStr[NUM_DATA_PINS+1];
 	binAdrStr[NUM_DATA_PINS] = 0;
 	// set the address
-	setAddressPins(pins,addressToRead);
+	setAddressPins(eeprom,addressToRead);
 	// enable output from the chip
-	digitalWrite(pins->outputEnable,LOW);
+	digitalWrite(eeprom->outputEnablePin,LOW);
 	// set the rpi to input on it's gpio data lines
 	for(int i=0;i<NUM_DATA_PINS;i++){
-		pinMode(pins->dataPins[i],INPUT);
+		pinMode(eeprom->dataPins[i],INPUT);
 	}
-	// read the pins and store to string
+	// read the eeprom and store to string
 	for(int i=0,j=NUM_DATA_PINS-1;i<NUM_DATA_PINS;i++,j--){
-		binAdrStr[i] = (char)(digitalRead(pins->dataPins[j])+0x30);
+		binAdrStr[i] = (char)(digitalRead(eeprom->dataPins[j])+0x30);
 	}
 
 	// convert the string to a number and return the number
@@ -338,30 +337,35 @@ char readByteFromAddress(struct Pins* pins,unsigned short addressToRead){
 }
 
 /* Write specified byte to specified address */
-int writeByteToAddress(struct Pins* pins,unsigned short addressToWrite, char dataToWrite,char verify,int* byteWriteCounter){
+int writeByteToAddress(struct Eeprom* eeprom,unsigned short addressToWrite, char dataToWrite,char verify,int* byteWriteCounter){
 	char binAdrStr[NUM_DATA_PINS+1];
 	binAdrStr[NUM_DATA_PINS] = 0;
 	int err = 0;
 
 	// set the address
-	setAddressPins(pins,addressToWrite);
+	setAddressPins(eeprom,addressToWrite);
 	// disable output from the chip
-	digitalWrite(pins->outputEnable,HIGH);
+	digitalWrite(eeprom->outputEnablePin,HIGH);
 	// set the rpi to output on it's gpio data lines
 	for(int i=0;i<NUM_DATA_PINS;i++){
-		pinMode(pins->dataPins[i],OUTPUT);
+		if ((eeprom->type == AT28C64) && ((i == 13) || (i == 14))){
+			// handle NC pins
+			pinMode(eeprom->dataPins[i], INPUT);	
+		} else {
+			pinMode(eeprom->dataPins[i], OUTPUT);
+		}
 	}
-	// Set the data pins to the data to be written
-	setDataPins(pins,dataToWrite);
+	// Set the data eeprom to the data to be written
+	setDataPins(eeprom,dataToWrite);
 
 	// perform the write
-	digitalWrite(pins->writeEnable,HIGH);
+	digitalWrite(eeprom->writeEnablePin,HIGH);
 	usleep(200);
-	digitalWrite(pins->writeEnable,LOW);
+	digitalWrite(eeprom->writeEnablePin,LOW);
 	usleep(200);
 	if (verify == 1){
 		// printf("Verifying Byte %i at Address %i\n",dataToWrite,addressToWrite);
-		if ( dataToWrite != readByteFromAddress(pins,addressToWrite)){
+		if ( dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
 			ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
 			(*byteWriteCounter)--;
 			err = -1;
@@ -373,25 +377,25 @@ int writeByteToAddress(struct Pins* pins,unsigned short addressToWrite, char dat
 	return err;
 }
 
-/* Set Address pins to value to read from or write to */
-void setAddressPins(struct Pins* pins,unsigned short addressToSet){
+/* Set Address eeprom to value to read from or write to */
+void setAddressPins(struct Eeprom* eeprom,unsigned short addressToSet){
 	char binStr[NUM_ADDRESS_PINS];
 	num2binStr(binStr,addressToSet,sizeof(binStr)/sizeof(binStr[0]));
 	char pin = NUM_ADDRESS_PINS-1;
 	for (char c = 0;c<NUM_ADDRESS_PINS;c++){
-		digitalWrite(pins->addressPins[pin],binStr[c]-0x30);
+		digitalWrite(eeprom->addressPins[pin],binStr[c]-0x30);
 		pin--;
 	}
 }
 
-/* Set Data pins to value to write */
-void setDataPins(struct Pins* pins,char dataToSet){
+/* Set Data eeprom to value to write */
+void setDataPins(struct Eeprom* eeprom,char dataToSet){
 	char binStr[NUM_DATA_PINS];
 	num2binStr(binStr,dataToSet,sizeof(binStr)/sizeof(binStr[0]));
 
 	char pin = NUM_DATA_PINS-1;
 	for (char c = 0;c<NUM_DATA_PINS;c++){
-		digitalWrite(pins->dataPins[pin],binStr[c]-0x30);
+		digitalWrite(eeprom->dataPins[pin],binStr[c]-0x30);
 		pin--;
 	}
 }
@@ -489,64 +493,73 @@ long expo(int base, int power){
 }
 
 /* Initialize rpi to write */
-int init(int romType,struct Pins *pins){
-			/*   WiPi // GPIO // Pin   */ 
-	pins->addressPins[14] = 8; // 2 // 3
-	pins->addressPins[12] = 9; // 3 // 5
-	
-	pins->addressPins[7] = 7; // 4 // 7
-	pins->addressPins[6] = 0; // 17 // 11
-	pins->addressPins[5] = 2; // 27 // 13
-	pins->addressPins[4] = 3; // 22 // 15
-	pins->addressPins[3] = 12; // 10 // 19
-	pins->addressPins[2] = 13; // 9 // 21
-	pins->addressPins[1] = 14; // 11 // 23
-	pins->addressPins[0] = 30; // 0 // 27
+int init(int romType,struct Eeprom *eeprom){
 
-	pins->dataPins[0] = 21; // 5 // 29
-	pins->dataPins[1] = 22; // 6 // 31
-	pins->dataPins[2] = 23; // 13 // 33
+	eeprom->type = romType;
+
+			/*   WiPi // GPIO // Pin   */ 
+	eeprom->addressPins[14] = 8; // 2 // 3
+	eeprom->addressPins[12] = 9; // 3 // 5
+	
+	eeprom->addressPins[7] = 7; // 4 // 7
+	eeprom->addressPins[6] = 0; // 17 // 11
+	eeprom->addressPins[5] = 2; // 27 // 13
+	eeprom->addressPins[4] = 3; // 22 // 15
+	eeprom->addressPins[3] = 12; // 10 // 19
+	eeprom->addressPins[2] = 13; // 9 // 21
+	eeprom->addressPins[1] = 14; // 11 // 23
+	eeprom->addressPins[0] = 30; // 0 // 27
+
+	eeprom->dataPins[0] = 21; // 5 // 29
+	eeprom->dataPins[1] = 22; // 6 // 31
+	eeprom->dataPins[2] = 23; // 13 // 33
 
 	// 24; // 19 // 35
 	// 25; // 26 // 37
 
+
 	if (romType == AT28C64 || romType == AT28C256){
-		pins->writeEnable =		  15; // 14 // 8
-		pins->addressPins[13] = 16; // 15 // 10
-		pins->addressPins[8] = 1; // 18 // 12
-		pins->addressPins[9] = 4; // 23 // 16
-		pins->addressPins[11] = 5; // 24 // 18
+		eeprom->writeEnablePin =		  15; // 14 // 8
+		eeprom->addressPins[13] = 16; // 15 // 10
+		eeprom->addressPins[8] = 1; // 18 // 12
+		eeprom->addressPins[9] = 4; // 23 // 16
+		eeprom->addressPins[11] = 5; // 24 // 18
 	} else if (romType == AT28C16){
-		pins->addressPins[8] = 1; // 18 // 12
-		pins->addressPins[9] = 4; // 23 // 16
-		pins->writeEnable =  5; // 24 // 18
+		eeprom->addressPins[8] = 1; // 18 // 12
+		eeprom->addressPins[9] = 4; // 23 // 16
+		eeprom->writeEnablePin =  5; // 24 // 18
 	}
 
-	pins->outputEnable =	   6; // 25 // 22
-	pins->addressPins[10] = 10; // 8 // 24
-	pins->chipEnable =	  11; // 7 // 26
-	pins->dataPins[7] = 31; // 1 // 28
-	pins->dataPins[6] = 26; // 12 // 32
-	pins->dataPins[5] = 27; // 16 // 36
-	pins->dataPins[4] = 28; // 20 // 38
-	pins->dataPins[3] = 29; // 21 // 40
+	eeprom->outputEnablePin =	   6; // 25 // 22
+	eeprom->addressPins[10] = 10; // 8 // 24
+	eeprom->chipEnablePin =	  11; // 7 // 26
+	eeprom->dataPins[7] = 31; // 1 // 28
+	eeprom->dataPins[6] = 26; // 12 // 32
+	eeprom->dataPins[5] = 27; // 16 // 36
+	eeprom->dataPins[4] = 28; // 20 // 38
+	eeprom->dataPins[3] = 29; // 21 // 40
 	
 	for(int i=0;i<NUM_ADDRESS_PINS;i++){
-		pinMode(pins->addressPins[i], OUTPUT);
-		digitalWrite(pins->addressPins[i], LOW);
+		pinMode(eeprom->addressPins[i], OUTPUT);
+		digitalWrite(eeprom->addressPins[i], LOW);
 	}
 
 	for(int i=0;i<NUM_DATA_PINS;i++){
-		pinMode(pins->dataPins[i], OUTPUT);
-		digitalWrite(pins->dataPins[i], LOW);
+		if ((eeprom->type == AT28C64) && ((i == 13) || (i == 14))){
+			// handle NC pins
+			pinMode(eeprom->dataPins[i], INPUT);	
+		} else {
+			pinMode(eeprom->dataPins[i], OUTPUT);
+			digitalWrite(eeprom->dataPins[i], LOW);
+		}
 	}
 
-	pinMode(pins->chipEnable, OUTPUT);
-	pinMode(pins->outputEnable, OUTPUT);
-	pinMode(pins->writeEnable, OUTPUT);
-	digitalWrite(pins->chipEnable, LOW);
-	digitalWrite(pins->outputEnable, HIGH);
-	digitalWrite(pins->writeEnable, LOW);
+	pinMode(eeprom->chipEnablePin, OUTPUT);
+	pinMode(eeprom->outputEnablePin, OUTPUT);
+	pinMode(eeprom->writeEnablePin, OUTPUT);
+	digitalWrite(eeprom->chipEnablePin, LOW);
+	digitalWrite(eeprom->outputEnablePin, HIGH);
+	digitalWrite(eeprom->writeEnablePin, LOW);
 
 	return 0;
 }
@@ -570,7 +583,7 @@ void printHelp(){
 }
 
 /* Prints the Rom's Contents to the specified limit */
-void printROMContents(struct Pins* pins, long begin,long limit,int format){
+void printROMContents(struct Eeprom* eeprom, long begin,long limit,int format){
 	if (limit == -1){
 		limit = 256;
 	}
@@ -578,7 +591,7 @@ void printROMContents(struct Pins* pins, long begin,long limit,int format){
 	switch (format) {
 	case 0:
 		for (int i=begin;i<limit;i++){
-			printf("Address: %i     Data: %i \n",i,readByteFromAddress(pins,i));
+			printf("Address: %i     Data: %i \n",i,readByteFromAddress(eeprom,i));
 		}
 		break;
 	case 1:	// binary
@@ -587,7 +600,7 @@ void printROMContents(struct Pins* pins, long begin,long limit,int format){
 			putc(0xFF,stdout);
 		}
 		for (int i=begin;i<limit;i++) {
-			putc(readByteFromAddress(pins,i),stdout);
+			putc(readByteFromAddress(eeprom,i),stdout);
 		}
 		break;
 	case 2: // text
@@ -596,7 +609,7 @@ void printROMContents(struct Pins* pins, long begin,long limit,int format){
 			char dataBinStr[NUM_DATA_PINS+1];
 
 			num2binStr(addressBinStr,i,NUM_ADDRESS_PINS+1);
-			num2binStr(dataBinStr,readByteFromAddress(pins,i),NUM_DATA_PINS);
+			num2binStr(dataBinStr,readByteFromAddress(eeprom,i),NUM_DATA_PINS);
 			if ( begin < 0x100 && limit < 0x100){
 				char shortAddressBinStr[9];
 				strncpy(shortAddressBinStr,&addressBinStr[8],8);
@@ -615,18 +628,18 @@ void printROMContents(struct Pins* pins, long begin,long limit,int format){
 		for (int i=begin;i<limit;i++){
 			printf("%04x | %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n", \
 			i, \
-			readByteFromAddress(pins,i), readByteFromAddress(pins,i+1), readByteFromAddress(pins,i+2), \
-			readByteFromAddress(pins,i+3), readByteFromAddress(pins,i+4), readByteFromAddress(pins,i+5), \
-			readByteFromAddress(pins,i+6), readByteFromAddress(pins,i+7), readByteFromAddress(pins,i+8), \
-			readByteFromAddress(pins,i+9), readByteFromAddress(pins,i+10), readByteFromAddress(pins,i+11), \
-			readByteFromAddress(pins,i+12), readByteFromAddress(pins,i+13), readByteFromAddress(pins,i+14), \
-			readByteFromAddress(pins,i+15));
+			readByteFromAddress(eeprom,i), readByteFromAddress(eeprom,i+1), readByteFromAddress(eeprom,i+2), \
+			readByteFromAddress(eeprom,i+3), readByteFromAddress(eeprom,i+4), readByteFromAddress(eeprom,i+5), \
+			readByteFromAddress(eeprom,i+6), readByteFromAddress(eeprom,i+7), readByteFromAddress(eeprom,i+8), \
+			readByteFromAddress(eeprom,i+9), readByteFromAddress(eeprom,i+10), readByteFromAddress(eeprom,i+11), \
+			readByteFromAddress(eeprom,i+12), readByteFromAddress(eeprom,i+13), readByteFromAddress(eeprom,i+14), \
+			readByteFromAddress(eeprom,i+15));
 			i = i+15;
 		}
 		break;
 	default:
 		for (int i=begin;i<limit;i++){
-			printf("Address: %i     Data: %i \n",i,readByteFromAddress(pins,i));
+			printf("Address: %i     Data: %i \n",i,readByteFromAddress(eeprom,i));
 		}
 		break;
 	}

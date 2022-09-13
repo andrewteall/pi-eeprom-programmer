@@ -12,24 +12,24 @@ const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEB
 enum ROM_TYPE {AT28C16,AT28C64,AT28C256};
 const char *ROMTYPESTRINGS[] = {"at28c16","at28c64","at28c256"};
 
-struct Pins{
+struct Eeprom{
     int addressPins[NUM_ADDRESS_PINS];
     int dataPins[NUM_DATA_PINS];
-    int writeEnable;
-    int outputEnable;
-    int chipEnable;
-
+    int writeEnablePin;
+    int outputEnablePin;
+    int chipEnablePin;
+    int type;
 };
 
-int init(int,struct Pins*);
+int init(int,struct Eeprom*);
 void printHelp(void);
-void printROMContents(struct Pins*,long,long,int);
+void printROMContents(struct Eeprom*,long,long,int);
 char *num2binStr(char*,int,int) ;
-void setAddressPins(struct Pins*,unsigned short);
-char readByteFromAddress(struct Pins*,unsigned short);
+void setAddressPins(struct Eeprom*,unsigned short);
+char readByteFromAddress(struct Eeprom*,unsigned short);
 int binStr2num(const char*);
-int writeByteToAddress(struct Pins*,unsigned short, char, char,int*);
-void setDataPins(struct Pins*,char);
+int writeByteToAddress(struct Eeprom*,unsigned short, char, char,int*);
+void setDataPins(struct Eeprom*,char);
 void backupWriter(char*);
 int str2num(char*);
 long expo(int, int);
