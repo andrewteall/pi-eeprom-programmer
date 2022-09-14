@@ -512,13 +512,12 @@ int init(struct Eeprom *eeprom,int romType){
 	eeprom->dataPins[0] = 21; // 5 // 29
 	eeprom->dataPins[1] = 22; // 6 // 31
 	eeprom->dataPins[2] = 23; // 13 // 33
-
 	// 24; // 19 // 35
 	// 25; // 26 // 37
 
 
 	if (romType == AT28C64 || romType == AT28C256){
-		eeprom->writeEnablePin =		  15; // 14 // 8
+		eeprom->writeEnablePin =  15; // 14 // 8
 		eeprom->addressPins[13] = 16; // 15 // 10
 		eeprom->addressPins[8] = 1; // 18 // 12
 		eeprom->addressPins[9] = 4; // 23 // 16
@@ -527,6 +526,7 @@ int init(struct Eeprom *eeprom,int romType){
 		eeprom->addressPins[8] = 1; // 18 // 12
 		eeprom->addressPins[9] = 4; // 23 // 16
 		eeprom->writeEnablePin =  5; // 24 // 18
+		eeprom->vccPin = 16; // 15 // 10
 	}
 
 	eeprom->outputEnablePin =	   6; // 25 // 22
@@ -556,9 +556,11 @@ int init(struct Eeprom *eeprom,int romType){
 	pinMode(eeprom->chipEnablePin, OUTPUT);
 	pinMode(eeprom->outputEnablePin, OUTPUT);
 	pinMode(eeprom->writeEnablePin, OUTPUT);
+	pinMode(eeprom->vccPin, OUTPUT);
 	digitalWrite(eeprom->chipEnablePin, LOW);
 	digitalWrite(eeprom->outputEnablePin, HIGH);
 	digitalWrite(eeprom->writeEnablePin, LOW);
+	digitalWrite(eeprom->vccPin, HIGH);
 
 	return 0;
 }

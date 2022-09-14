@@ -17,6 +17,7 @@ struct Eeprom{
     int writeEnablePin;
     int outputEnablePin;
     int chipEnablePin;
+    int vccPin;
     int type;
 };
 
