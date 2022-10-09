@@ -3,13 +3,13 @@
 
 #ifndef ULOG_H
 #define ULOG_H
-void ulog(int,char*,...);
+void ulog(int,const char*,...);
 enum LOGLEVEL {OFF,FATAL,ERROR,WARNING,INFO,DEBUG};
 const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG",};
 #endif
 
-enum EEPROM_MODEL {AT28C16,AT28C64,AT28C256,AT24C02,AT24C256,AT24C512};
-const char *EEPROMMODELSTRINGS[] = {"at28c16","at28c64","at28c256","at24c02","at24c256","at24c512"};
+enum EEPROM_MODEL {AT28C16,AT28C64,AT28C256,AT24C01,AT24C02,AT24C256,AT24C512};
+const int EEPROMMODELSIZES[] = {2048,8192,32768,1024,2048,32768,65536};
 
 struct Eeprom{
     int addressPins[NUM_ADDRESS_PINS];
@@ -19,20 +19,21 @@ struct Eeprom{
     int chipEnablePin;
     int vccPin;
     int model;
+    int size;
 };
 
 int init(struct Eeprom*, int);
 
 int compareBinaryFileToEEPROM(struct Eeprom*, FILE*, long, unsigned long);
 int compareTextFileToEEPROM(struct Eeprom*, FILE*,unsigned long);
-int writeTextFileToEEPROM(struct Eeprom*, FILE*, int, unsigned long);
-int writeBinaryFileToEEPROM(struct Eeprom*, FILE*, int, long, unsigned long);
+int writeTextFileToEEPROM(struct Eeprom*, FILE*, int, char,unsigned long);
+int writeBinaryFileToEEPROM(struct Eeprom*, FILE*, int, char, long, unsigned long);
 
-char readByteFromAddress(struct Eeprom*,unsigned short);
-int writeByteToAddress(struct Eeprom*,unsigned short, char, char,int*);
+char readByteFromAddress(struct Eeprom*,unsigned int);
+int writeByteToAddress(struct Eeprom*,unsigned int, char, char,char,int*);
 
 void setDataPins(struct Eeprom*,char);
-void setAddressPins(struct Eeprom*,unsigned short);
+void setAddressPins(struct Eeprom*,unsigned int);
 
 void printHelp(void);
 void printROMContents(struct Eeprom*,long,long,int);

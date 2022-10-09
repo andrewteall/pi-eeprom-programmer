@@ -11,27 +11,30 @@ int loggingLevel = WARNING;
 
 int main(int argc, char *argv[]){
 	enum FILE_TYPE {TEXT_FILE,BINARY_FILE};
-	enum APP_FUNCTIONS {WRITE_FILE_TO_ROM,COMPARE_ROM_TO_FILE,DUMP_ROM};
+	enum APP_FUNCTIONS {WRITE_FILE_TO_ROM,COMPARE_ROM_TO_FILE,DUMP_ROM,WRITE_SINGLE_BYTE_TO_ROM};
 
 	FILE *romFile;
 	char *filename;
+	struct Eeprom eeprom;
 
 	// defaults
 	long limit = -1;
 	long startValue = 0;
 	int dumpFormat = 0;
 	int validateWrite = 1;
-	struct Eeprom eeprom;
-	
+	int force = 0;
 	int action = WRITE_FILE_TO_ROM;
 	int fileType = TEXT_FILE;
 	int eepromModel = AT28C16;
 
+	int addressParam = 0;
+	int dataParam = 0;
+
 	// TODO: Add serial device support -p --parallel -s --serial
 	// TODO: Support start value for text files
-	// TODO: Add Force write / don't write is value is the same
-	// TODO: Make write validation better / bulk instead of swapping modes repeatedly
-
+	// FIXME: Fix pin configuration for different chips. Example: vcc pin
+	// TODO: maybe use log2() for num address pins or log2 (x) = logy (x) / logy (2)
+	// TODO: read byte at address
 
 	if (argc == 1){
 		printHelp();
@@ -93,12 +96,46 @@ int main(int argc, char *argv[]){
 
 			// -d --dump
 			if (!strcmp(argv[i],"-d") || !strcmp(argv[i],"--dump")){
-				if (action == COMPARE_ROM_TO_FILE){
-					ulog(WARNING,"-d or --dump flag specified but -c or --compare has already be set. Ignoring -d or --dump flag.");
+				if (action == COMPARE_ROM_TO_FILE || action == WRITE_SINGLE_BYTE_TO_ROM){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
 					ulog(INFO,"Dumping ROM to standard out");
 					dumpFormat = str2num(argv[i+1]);
 					action = DUMP_ROM;
+				}
+			}
+
+			// -w --write
+			if (!strcmp(argv[i],"-w") || !strcmp(argv[i],"--write")){
+				if (action == COMPARE_ROM_TO_FILE || action == DUMP_ROM){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else {
+					
+					addressParam = str2num(argv[i+1]);
+					dataParam = str2num(argv[i+2]);
+					if ( addressParam == -1 || dataParam == -1) {
+						ulog(ERROR,"Unsupported number format. Exiting.");
+						return 1;
+					}
+					if (dataParam > 0xFF){
+						ulog(ERROR,"Data byte too large. Please specify a value less than 256.");
+						return 1;
+					}
+					ulog(INFO,"Writing Byte %s to Address %s",argv[i+2],argv[i+1]);
+					action = WRITE_SINGLE_BYTE_TO_ROM;
+				}
+			}
+
+			// -c --compare
+			if (!strcmp(argv[i],"-c") || !strcmp(argv[i],"--compare")){
+				if (action == DUMP_ROM || action == WRITE_SINGLE_BYTE_TO_ROM){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else {
+					ulog(INFO,"Comparing ROM to File");
+					action = COMPARE_ROM_TO_FILE;
 				}
 			}
 
@@ -108,14 +145,10 @@ int main(int argc, char *argv[]){
 				validateWrite = 0;
 			}
 
-			// -c --compare
-			if (!strcmp(argv[i],"-c") || !strcmp(argv[i],"--compare")){
-				if (action == DUMP_ROM){
-					ulog(WARNING,"-c or --compare flag specified but -d or --dump has already be set. Ignoring -c or --compare flag.");
-				} else {
-					ulog(INFO,"Comparing ROM to File");
-					action = COMPARE_ROM_TO_FILE;
-				}
+			// -f --force
+			if (!strcmp(argv[i],"-f") || !strcmp(argv[i],"--force")){
+					ulog(INFO,"Forcing all writes even if value is already present.");
+					force = 1;
 			}
 
 			// -m --model
@@ -130,7 +163,7 @@ int main(int argc, char *argv[]){
 					ulog(FATAL,"Unsupported ROM Model");
 					return 1;
 				}
-				ulog(INFO,"Setting rom model to %s",EEPROMMODELSTRINGS[eepromModel]);
+				ulog(INFO,"Setting rom model to %s",argv[i+1]);
 			}
 		}
 	}
@@ -156,10 +189,10 @@ int main(int argc, char *argv[]){
 
 			switch(fileType | (action<<8)){
 				case TEXT_FILE| (WRITE_FILE_TO_ROM<<8):
-					writeTextFileToEEPROM(&eeprom,romFile,validateWrite,limit);
+					writeTextFileToEEPROM(&eeprom,romFile,validateWrite, force, limit);
 					break;
 				case BINARY_FILE | (WRITE_FILE_TO_ROM<<8):
-					writeBinaryFileToEEPROM(&eeprom,romFile,validateWrite,startValue,limit);
+					writeBinaryFileToEEPROM(&eeprom,romFile,validateWrite,force,startValue,limit);
 					break;
 				case TEXT_FILE | (COMPARE_ROM_TO_FILE<<8):
 					compareTextFileToEEPROM(&eeprom,romFile,limit);
@@ -174,13 +207,15 @@ int main(int argc, char *argv[]){
 		case DUMP_ROM:
 			printROMContents(&eeprom,startValue,limit,dumpFormat);
 			break;
+		case WRITE_SINGLE_BYTE_TO_ROM:
+			writeByteToAddress(&eeprom,addressParam,dataParam,validateWrite,force,NULL);
+			break;
 	}
 	return 0;
 }
 
 /* Open and write a text file to Memory */
-int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, unsigned long limit){
-
+int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, char force, unsigned long limit){
 	int counter = 0;
 	
 	char textFileAddress[NUM_ADDRESS_PINS+1];
@@ -219,7 +254,8 @@ int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, 
 			}
 			// ulog(DEBUG,"Writing to File %s  %s",textFileAddress,textFiledata);
 			// ulog(DEBUG,"Writing to File %i  %i",binStr2num(textFileAddress),binStr2num(textFiledata));
-			err = writeByteToAddress(eeprom,binStr2num(textFileAddress),binStr2num(textFiledata),validate,&byteWriteCounter);
+			err = writeByteToAddress( \
+							eeprom,binStr2num(textFileAddress),binStr2num(textFiledata),validate,force,&byteWriteCounter);
 			addressLength = 0;
 			dataLength = 0;
 			haveNotReachedSeparator = 1;
@@ -285,17 +321,16 @@ int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned lon
 }
 
 /* Open and write a binary file to Memory */
-int writeBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile,int validate,long begin, unsigned long limit){
+int writeBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile,int validate,char force,long begin, unsigned long limit){
 	int c,addressToWrite = 0,err=0;
 	int byteWriteCounter = 0;
-	int counter = 0;
 
 	while (addressToWrite < begin && (fgetc(memoryFile) != EOF)){
 		addressToWrite++;
 	}
 
 	while(((c = fgetc(memoryFile)) != EOF) && addressToWrite < limit) {
-		err = writeByteToAddress(eeprom,addressToWrite++,c,validate,&byteWriteCounter);
+		err = writeByteToAddress(eeprom,addressToWrite++,c,validate,force,&byteWriteCounter);
 	}
 	ulog(INFO,"Wrote %i bytes",byteWriteCounter);
 	return err;
@@ -321,9 +356,7 @@ int compareBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile, long begin
 }
 
 /* Read byte from specified Address */
-char readByteFromAddress(struct Eeprom* eeprom,unsigned short addressToRead){
-	char binAdrStr[NUM_DATA_PINS+1];
-	binAdrStr[NUM_DATA_PINS] = 0;
+char readByteFromAddress(struct Eeprom* eeprom,unsigned int addressToRead){
 	// set the address
 	setAddressPins(eeprom,addressToRead);
 	// enable output from the chip
@@ -334,75 +367,72 @@ char readByteFromAddress(struct Eeprom* eeprom,unsigned short addressToRead){
 		pullUpDnControl(eeprom->dataPins[i],PUD_DOWN);
 	}
 	// read the eeprom and store to string
-	for(int i=0,j=NUM_DATA_PINS-1;i<NUM_DATA_PINS;i++,j--){
-		binAdrStr[i] = (char)(digitalRead(eeprom->dataPins[j])+0x30);
+	char byteVal = 0;
+	for(int i=NUM_DATA_PINS-1;i>=0;i--){
+		byteVal <<= 1;
+		byteVal |= (digitalRead(eeprom->dataPins[i]) & 1);		
 	}
 
-	// convert the string to a number and return the number
-	return binStr2num(binAdrStr);
+	// return the number
+	return byteVal;
 }
 
 /* Write specified byte to specified address */
-int writeByteToAddress(struct Eeprom* eeprom,unsigned short addressToWrite, char dataToWrite,char verify,int* byteWriteCounter){
-	char binAdrStr[NUM_DATA_PINS+1];
-	binAdrStr[NUM_DATA_PINS] = 0;
+int writeByteToAddress(struct Eeprom* eeprom,unsigned int addressToWrite, \
+						char dataToWrite,char verify,char force, int* byteWriteCounter){
 	int err = 0;
+	if ( force || dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
+		// usleep(200);
+		// set the address
+		setAddressPins(eeprom,addressToWrite);
+		// disable output from the chip
+		digitalWrite(eeprom->outputEnablePin,HIGH);
+		// set the rpi to output on it's gpio data lines
+		for(int i=0;i<NUM_DATA_PINS;i++){
+				pinMode(eeprom->dataPins[i], OUTPUT);
+		}
+		// Set the data eeprom to the data to be written
+		setDataPins(eeprom,dataToWrite);
 
-	// set the address
-	setAddressPins(eeprom,addressToWrite);
-	// disable output from the chip
-	digitalWrite(eeprom->outputEnablePin,HIGH);
-	// set the rpi to output on it's gpio data lines
-	for(int i=0;i<NUM_DATA_PINS;i++){
-			pinMode(eeprom->dataPins[i], OUTPUT);
-	}
-	// Set the data eeprom to the data to be written
-	setDataPins(eeprom,dataToWrite);
-
-	// perform the write
-	digitalWrite(eeprom->writeEnablePin,HIGH);
-	usleep(200);
-	digitalWrite(eeprom->writeEnablePin,LOW);
-	// usleep(20000); Non C version <-
-	usleep(2500);
-	if (verify == 1){
-		// printf("Verifying Byte %i at Address %i\n",dataToWrite,addressToWrite);
-		if ( dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
-			ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
-			(*byteWriteCounter)--;
-			err = -1;
-		} else {
-			ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+		// perform the write
+		digitalWrite(eeprom->writeEnablePin,HIGH);
+		usleep(100);
+		digitalWrite(eeprom->writeEnablePin,LOW);
+		// usleep(20000); Non C version <-
+		usleep(1000);
+		if (verify == 1){
+			if ( dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
+				ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
+				if(byteWriteCounter != NULL){
+					(*byteWriteCounter)--;
+				}
+				err = -1;
+			} else {
+				ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+			}
+		}
+		if(byteWriteCounter != NULL){
+			(*byteWriteCounter)++;
 		}
 	}
-	(*byteWriteCounter)++;
 	return err;
 }
 
 /* Set Address eeprom to value to read from or write to */
-void setAddressPins(struct Eeprom* eeprom,unsigned short addressToSet){
-	char binStr[NUM_ADDRESS_PINS];
-	num2binStr(binStr,addressToSet,sizeof(binStr)/sizeof(binStr[0]));
-	char pin = NUM_ADDRESS_PINS-1;
-	for (char c = 0;c<NUM_ADDRESS_PINS;c++){
-		if ((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14))){
-			;
-		} else {
-			digitalWrite(eeprom->addressPins[pin],binStr[c]-0x30);
-			pin--;
+void setAddressPins(struct Eeprom* eeprom,unsigned int addressToSet){
+	for (char pin = 0;pin<NUM_ADDRESS_PINS;pin++){
+		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
+			digitalWrite(eeprom->addressPins[pin],(addressToSet & 1));
+			addressToSet >>= 1;
 		}
 	}
 }
 
 /* Set Data eeprom to value to write */
 void setDataPins(struct Eeprom* eeprom,char dataToSet){
-	char binStr[NUM_DATA_PINS];
-	num2binStr(binStr,dataToSet,sizeof(binStr)/sizeof(binStr[0]));
-
-	char pin = NUM_DATA_PINS-1;
-	for (char c = 0;c<NUM_DATA_PINS;c++){
-		digitalWrite(eeprom->dataPins[pin],binStr[c]-0x30);
-		pin--;
+	for (char pin = 0;pin<NUM_DATA_PINS;pin++){
+		digitalWrite(eeprom->dataPins[pin],(dataToSet & 1));
+		dataToSet >>= 1;
 	}
 }
 
@@ -501,6 +531,7 @@ long expo(int base, int power){
 /* Initialize rpi to write */
 int init(struct Eeprom *eeprom,int eepromModel){
 	eeprom->model = eepromModel;
+	eeprom->size = EEPROMMODELSIZES[eepromModel];
 
 	if (eepromModel >= AT24C02 && eepromModel <= AT24C256){
 		// eeprom->addressPins[0] = 23; // 13 // 33
@@ -561,6 +592,8 @@ int init(struct Eeprom *eeprom,int eepromModel){
 			eeprom->addressPins[9] = 4; // 23 // 16
 			eeprom->writeEnablePin =  5; // 24 // 18
 			eeprom->vccPin = 16; // 15 // 10
+			eeprom->addressPins[11] = 15; // 14 // 8 !Not Used
+			eeprom->addressPins[13] = 15; // 14 // 8 !Not Used
 		}
 
 		eeprom->outputEnablePin =	   6; // 25 // 22
@@ -583,10 +616,11 @@ int init(struct Eeprom *eeprom,int eepromModel){
 			}
 		}
 
+		
+
 		for(int i=0;i<NUM_DATA_PINS;i++){
-				pinMode(eeprom->dataPins[i], OUTPUT);
-				digitalWrite(eeprom->dataPins[i], LOW);
-				
+			pinMode(eeprom->dataPins[i], OUTPUT);
+			digitalWrite(eeprom->dataPins[i], LOW);
 		}
 
 		pinMode(eeprom->chipEnablePin, OUTPUT);
@@ -598,7 +632,6 @@ int init(struct Eeprom *eeprom,int eepromModel){
 		digitalWrite(eeprom->writeEnablePin, LOW);
 		digitalWrite(eeprom->vccPin, HIGH);
 	}
-
 	return 0;
 }
 
@@ -609,21 +642,24 @@ void printHelp(){
 	printf(" -b,   --binary			Interpret file as a binary. Default: text\n");
 	printf("					Text File format:\n");
 	printf("					00000000 00000000\n");
-	printf(" -c,   --compare		Compare file and EEPROM and print differences.\n");
-	printf(" -d N,   --dump N		Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
-	printf(" -h,   --help			Print this message and exit.\n");
-	printf(" -l N, --limit N		Specify the maximum address to operate.\n");
-	printf("       --no-validate-write	Do not perform a read directly after writing to verify the data was written.\n");
+	printf(" -c,   	--compare		Compare file and EEPROM and print differences.\n");
+	printf(" -d N, 	--dump N		Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
+	printf(" -f,   	--force			Force writing of every bite instead of checking for existing value first.\n");
+	printf(" -h,   	--help			Print this message and exit.\n");
+	printf(" -l N, 	--limit N		Specify the maximum address to operate.\n");
+	printf("       	--no-validate-write	Do not perform a read directly after writing to verify the data was written.\n");
 	printf(" -m MODEL, --model MODEL	Specify EERPOM device model. Default: AT28C16.\n");
-	printf(" -s N, --start N		Specify the minimum address to operate.\n");
-	printf(" -v N, --v[vvvv]		Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
+	printf(" -s N, 	--start N		Specify the minimum address to operate.\n");
+	printf(" -v N, 	--v[vvvv]		Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
+	printf(" -w ADDRESS DATA, \n");
+	printf("\t--write ADDRESS DATA	Write specified DATA to ADDRESS.\n");
 	printf("\n");
 }
 
 /* Prints the Rom's Contents to the specified limit */
 void printROMContents(struct Eeprom* eeprom, long begin,long limit,int format){
-	if (limit == -1){
-		limit = 256;
+	if (limit == -1 || limit > EEPROMMODELSIZES[eeprom->model]){
+		limit = EEPROMMODELSIZES[eeprom->model];
 	}
 
 	switch (format) {
@@ -664,7 +700,8 @@ void printROMContents(struct Eeprom* eeprom, long begin,long limit,int format){
 		printf("       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
 		printf("       ===============================================================\n");
 		for (int i=begin;i<limit;i++){
-			printf("%04x | %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n", \
+			printf( \
+			"%04x | %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n", \
 			i, \
 			readByteFromAddress(eeprom,i), readByteFromAddress(eeprom,i+1), readByteFromAddress(eeprom,i+2), \
 			readByteFromAddress(eeprom,i+3), readByteFromAddress(eeprom,i+4), readByteFromAddress(eeprom,i+5), \
@@ -683,7 +720,7 @@ void printROMContents(struct Eeprom* eeprom, long begin,long limit,int format){
 	}
 }
 
-void ulog(int verbosity, char* logMessage,...) {
+void ulog(int verbosity, const char* logMessage,...) {
 	if (verbosity <= loggingLevel){
 		char logBuf[120];
 		va_list args;
