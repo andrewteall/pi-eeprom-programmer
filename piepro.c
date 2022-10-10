@@ -59,7 +59,7 @@ int main(int argc, char *argv[]){
 				}
 				if (verbosity >= 0 && verbosity <= 5){
 					loggingLevel = verbosity;
-					ulog(DEBUG,"Setting verbosity to [%i] %s",verbosity,LOGLEVELSTRINGS[verbosity]);
+					ulog(INFO,"Setting verbosity to [%i] %s",verbosity,LOGLEVELSTRINGS[verbosity]);
 				} else {
 					ulog(FATAL,"Unsupported verbosity value");
 					return 1;
@@ -195,10 +195,14 @@ int main(int argc, char *argv[]){
 					writeBinaryFileToEEPROM(&eeprom,romFile,validateWrite,force,startValue,limit);
 					break;
 				case TEXT_FILE | (COMPARE_ROM_TO_FILE<<8):
-					compareTextFileToEEPROM(&eeprom,romFile,limit);
+					if(compareTextFileToEEPROM(&eeprom,romFile,limit)){
+						ulog(ERROR,"EEPROM does not match file");
+					}
 					break;
 				case BINARY_FILE | (COMPARE_ROM_TO_FILE<<8):
-					compareBinaryFileToEEPROM(&eeprom,romFile,startValue,limit);
+					if(compareBinaryFileToEEPROM(&eeprom,romFile,startValue,limit)){
+						ulog(ERROR,"EEPROM does not match file");
+					}
 					break;
 			}
 			
@@ -307,7 +311,7 @@ int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned lon
 			addressToCompare  = binStr2num(textFileAddress);
 			dataToCompare = binStr2num(textFiledata);
 			if (readByteFromAddress(eeprom,addressToCompare) != dataToCompare){
-				printf("Byte at Address 0x%02x does not match. Rom: %i File: %i\n", \
+				ulog(INFO,"Byte at Address 0x%02x does not match. Rom: %i File: %i\n", \
 					addressToCompare,readByteFromAddress(eeprom,addressToCompare),dataToCompare);
 				err = 1;
 			}
@@ -408,7 +412,7 @@ int writeByteToAddress(struct Eeprom* eeprom,unsigned int addressToWrite, \
 				}
 				err = -1;
 			} else {
-				ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+				ulog(INFO,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
 			}
 		}
 		if(byteWriteCounter != NULL){
