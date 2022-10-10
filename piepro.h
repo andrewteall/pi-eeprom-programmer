@@ -1,5 +1,5 @@
-#define NUM_ADDRESS_PINS 15
-#define NUM_DATA_PINS 8
+#define MAX_ADDRESS_PINS 15
+#define MAX_DATA_PINS 8
 
 #ifndef ULOG_H
 #define ULOG_H
@@ -10,16 +10,21 @@ const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEB
 
 enum EEPROM_MODEL {AT28C16,AT28C64,AT28C256,AT24C01,AT24C02,AT24C256,AT24C512};
 const int EEPROMMODELSIZES[] = {2048,8192,32768,1024,2048,32768,65536};
+const int EEPROM_NUM_ADDRESS_PINS[] = {11,13,15,1,1,1,1};
+const int EEPROM_NUM_DATA_PINS[] = {8,8,8,1,1,1,1};
 
 struct Eeprom{
-    int addressPins[NUM_ADDRESS_PINS];
-    int dataPins[NUM_DATA_PINS];
+    int addressPins[MAX_ADDRESS_PINS];
+    int dataPins[MAX_DATA_PINS];
     int writeEnablePin;
     int outputEnablePin;
     int chipEnablePin;
     int vccPin;
+    
     int model;
     int size;
+    char numAddressPins;
+    char numDataPins;
 };
 
 int init(struct Eeprom*, int);

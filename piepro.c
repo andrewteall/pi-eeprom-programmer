@@ -33,8 +33,6 @@ int main(int argc, char *argv[]){
 	// TODO: Add serial device support -p --parallel -s --serial
 	// TODO: Support start value for text files
 	// FIXME: Fix pin configuration for different chips. Example: vcc pin
-	// TODO: maybe use log2() for num address pins or log2 (x) = logy (x) / logy (2)
-	// TODO: read byte at address
 
 	if (argc == 1){
 		printHelp();
@@ -222,8 +220,8 @@ int main(int argc, char *argv[]){
 int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, char force, unsigned long limit){
 	int counter = 0;
 	
-	char textFileAddress[NUM_ADDRESS_PINS+1];
-	char textFiledata[NUM_DATA_PINS+1];
+	char textFileAddress[eeprom->numAddressPins+1];
+	char textFiledata[eeprom->numDataPins+1];
 	int c;
 	int err = 0;
 	int haveNotReachedSeparator = 1;
@@ -231,27 +229,27 @@ int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, 
 	int dataLength = 0;
 	int byteWriteCounter = 0;
 
-	textFileAddress[NUM_ADDRESS_PINS] = 0;
-	textFiledata[NUM_DATA_PINS] = 0;
+	textFileAddress[eeprom->numAddressPins] = 0;
+	textFiledata[eeprom->numDataPins] = 0;
 
 	while( ((c = fgetc(memoryFile)) != EOF ) && counter < limit){
 		if (c != '\n'){
-			if ((addressLength < NUM_ADDRESS_PINS) && (haveNotReachedSeparator) ){
+			if ((addressLength < eeprom->numAddressPins) && (haveNotReachedSeparator) ){
 				if(c == '1' || c == '0'){
 					textFileAddress[addressLength++] = c;
 				} else if (c == ' '){
 					haveNotReachedSeparator = 0;
 				}
 			} else {
-				if (dataLength < NUM_DATA_PINS){
+				if (dataLength < eeprom->numDataPins){
 					if(c == '1' || c == '0'){
 						textFiledata[dataLength++] = c;
 					}
 				}
 			}
 		} else {
-			if (addressLength < NUM_ADDRESS_PINS){
-				for(int i = addressLength-1,j=NUM_ADDRESS_PINS-1;i>=0;i--,j--){
+			if (addressLength < eeprom->numAddressPins){
+				for(int i = addressLength-1,j=eeprom->numAddressPins-1;i>=0;i--,j--){
 					textFileAddress[j]= textFileAddress[i];
 					textFileAddress[i] = '0';
 				}
@@ -275,34 +273,34 @@ int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned lon
 
 	int counter = 0;
 	
-	char textFileAddress[NUM_ADDRESS_PINS+1];
-	char textFiledata[NUM_DATA_PINS+1];
+	char textFileAddress[eeprom->numAddressPins+1];
+	char textFiledata[eeprom->numDataPins+1];
 	int c;
 	int haveNotReachedSeparator = 1;
 	int addressLength = 0;
 	int dataLength = 0;
 
-	textFileAddress[NUM_ADDRESS_PINS] = 0;
-	textFiledata[NUM_DATA_PINS] = 0;
+	textFileAddress[eeprom->numAddressPins] = 0;
+	textFiledata[eeprom->numDataPins] = 0;
 
 	while( ((c = fgetc(memoryFile)) != EOF ) && (counter < limit)){
 		if (c != '\n'){
-			if ((addressLength < NUM_ADDRESS_PINS) && (haveNotReachedSeparator) ){
+			if ((addressLength < eeprom->numAddressPins) && (haveNotReachedSeparator) ){
 				if(c == '1' || c == '0'){
 					textFileAddress[addressLength++] = c;
 				} else if (c == ' '){
 					haveNotReachedSeparator = 0;
 				}
 			} else {
-				if (dataLength < NUM_DATA_PINS){
+				if (dataLength < eeprom->numDataPins){
 					if(c == '1' || c == '0'){
 						textFiledata[dataLength++] = c;
 					}
 				}
 			}
 		} else {
-			if (addressLength < NUM_ADDRESS_PINS){
-				for(int i = addressLength-1,j=NUM_ADDRESS_PINS-1;i>=0;i--,j--){
+			if (addressLength < eeprom->numAddressPins){
+				for(int i = addressLength-1,j=eeprom->numAddressPins-1;i>=0;i--,j--){
 					textFileAddress[j]= textFileAddress[i];
 					textFileAddress[i] = '0';
 
@@ -366,13 +364,13 @@ char readByteFromAddress(struct Eeprom* eeprom,unsigned int addressToRead){
 	// enable output from the chip
 	digitalWrite(eeprom->outputEnablePin,LOW);
 	// set the rpi to input on it's gpio data lines
-	for(int i=0;i<NUM_DATA_PINS;i++){
+	for(int i=0;i<eeprom->numDataPins;i++){
 		pinMode(eeprom->dataPins[i],INPUT);
 		pullUpDnControl(eeprom->dataPins[i],PUD_DOWN);
 	}
 	// read the eeprom and store to string
 	char byteVal = 0;
-	for(int i=NUM_DATA_PINS-1;i>=0;i--){
+	for(int i=eeprom->numDataPins-1;i>=0;i--){
 		byteVal <<= 1;
 		byteVal |= (digitalRead(eeprom->dataPins[i]) & 1);		
 	}
@@ -392,7 +390,7 @@ int writeByteToAddress(struct Eeprom* eeprom,unsigned int addressToWrite, \
 		// disable output from the chip
 		digitalWrite(eeprom->outputEnablePin,HIGH);
 		// set the rpi to output on it's gpio data lines
-		for(int i=0;i<NUM_DATA_PINS;i++){
+		for(int i=0;i<eeprom->numDataPins;i++){
 				pinMode(eeprom->dataPins[i], OUTPUT);
 		}
 		// Set the data eeprom to the data to be written
@@ -424,7 +422,7 @@ int writeByteToAddress(struct Eeprom* eeprom,unsigned int addressToWrite, \
 
 /* Set Address eeprom to value to read from or write to */
 void setAddressPins(struct Eeprom* eeprom,unsigned int addressToSet){
-	for (char pin = 0;pin<NUM_ADDRESS_PINS;pin++){
+	for (char pin = 0;pin<eeprom->numAddressPins;pin++){
 		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
 			digitalWrite(eeprom->addressPins[pin],(addressToSet & 1));
 			addressToSet >>= 1;
@@ -434,7 +432,7 @@ void setAddressPins(struct Eeprom* eeprom,unsigned int addressToSet){
 
 /* Set Data eeprom to value to write */
 void setDataPins(struct Eeprom* eeprom,char dataToSet){
-	for (char pin = 0;pin<NUM_DATA_PINS;pin++){
+	for (char pin = 0;pin<eeprom->numDataPins;pin++){
 		digitalWrite(eeprom->dataPins[pin],(dataToSet & 1));
 		dataToSet >>= 1;
 	}
@@ -536,6 +534,9 @@ long expo(int base, int power){
 int init(struct Eeprom *eeprom,int eepromModel){
 	eeprom->model = eepromModel;
 	eeprom->size = EEPROMMODELSIZES[eepromModel];
+	eeprom->numAddressPins = (EEPROM_NUM_ADDRESS_PINS[eepromModel]);
+	eeprom->numDataPins = (EEPROM_NUM_DATA_PINS[eepromModel]);
+	
 
 	if (eepromModel >= AT24C02 && eepromModel <= AT24C256){
 		// eeprom->addressPins[0] = 23; // 13 // 33
@@ -566,8 +567,8 @@ int init(struct Eeprom *eeprom,int eepromModel){
 
 	} else {
 				/*   WiPi // GPIO // Pin   */ 
-		eeprom->addressPins[14] = 8; // 2 // 3
-		eeprom->addressPins[12] = 9; // 3 // 5
+		eeprom->addressPins[14] = 8; // 2 // 3 !Not Used on AT28C16
+		eeprom->addressPins[12] = 9; // 3 // 5 !Not Used on AT28C16
 		
 		eeprom->addressPins[7] = 7; // 4 // 7
 		eeprom->addressPins[6] = 0; // 17 // 11
@@ -609,7 +610,7 @@ int init(struct Eeprom *eeprom,int eepromModel){
 		eeprom->dataPins[4] = 28; // 20 // 38
 		eeprom->dataPins[3] = 29; // 21 // 40
 		
-		for(int i=0;i<NUM_ADDRESS_PINS;i++){
+		for(int i=0;i<eeprom->numAddressPins;i++){
 			if ((eeprom->model == AT28C64) && ((i == 13) || (i == 14))){
 				// handle NC pins
 				pinMode(eeprom->addressPins[i], INPUT);	
@@ -620,9 +621,7 @@ int init(struct Eeprom *eeprom,int eepromModel){
 			}
 		}
 
-		
-
-		for(int i=0;i<NUM_DATA_PINS;i++){
+		for(int i=0;i<eeprom->numDataPins;i++){
 			pinMode(eeprom->dataPins[i], OUTPUT);
 			digitalWrite(eeprom->dataPins[i], LOW);
 		}
@@ -683,11 +682,11 @@ void printROMContents(struct Eeprom* eeprom, long begin,long limit,int format){
 		break;
 	case 2: // text
 		for (int i=begin;i<limit;i++) {
-			char addressBinStr[NUM_ADDRESS_PINS+2];
-			char dataBinStr[NUM_DATA_PINS+1];
+			char addressBinStr[eeprom->numAddressPins+2];
+			char dataBinStr[eeprom->numDataPins+1];
 
-			num2binStr(addressBinStr,i,NUM_ADDRESS_PINS+1);
-			num2binStr(dataBinStr,readByteFromAddress(eeprom,i),NUM_DATA_PINS);
+			num2binStr(addressBinStr,i,eeprom->numAddressPins+1);
+			num2binStr(dataBinStr,readByteFromAddress(eeprom,i),eeprom->numDataPins);
 			if ( begin < 0x100 && limit < 0x100){
 				char shortAddressBinStr[9];
 				strncpy(shortAddressBinStr,&addressBinStr[8],8);
