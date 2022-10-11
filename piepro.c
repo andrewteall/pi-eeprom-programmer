@@ -32,7 +32,8 @@ int main(int argc, char *argv[]){
 
 	// TODO: Add serial device support -p --parallel -s --serial
 	// TODO: Support start value for text files
-	// FIXME: Fix pin configuration for different chips. Example: vcc pin
+	// TODO: Add write cycle time adjustment from command line
+	// TODO: Add non-cmos support
 
 	if (argc == 1){
 		printHelp();
@@ -309,7 +310,7 @@ int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned lon
 			addressToCompare  = binStr2num(textFileAddress);
 			dataToCompare = binStr2num(textFiledata);
 			if (readByteFromAddress(eeprom,addressToCompare) != dataToCompare){
-				ulog(INFO,"Byte at Address 0x%02x does not match. Rom: %i File: %i\n", \
+				ulog(INFO,"Byte at Address 0x%02x does not match. Rom: %i File: %i", \
 					addressToCompare,readByteFromAddress(eeprom,addressToCompare),dataToCompare);
 				err = 1;
 			}
@@ -348,7 +349,7 @@ int compareBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile, long begin
 
 	while(((c = fgetc(memoryFile)) != EOF) && addressToCompare < limit) {
 		if (readByteFromAddress(eeprom,addressToCompare) != (char)c){
-			printf("Byte at Address 0x%02x does not match. Rom: %i File: %i\n", \
+			ulog(INFO,"Byte at Address 0x%02x does not match. Rom: %i File: %i", \
 				addressToCompare,readByteFromAddress(eeprom,addressToCompare),c);
 			err = 1;
 		}
@@ -397,10 +398,10 @@ int writeByteToAddress(struct Eeprom* eeprom,unsigned int addressToWrite, \
 		setDataPins(eeprom,dataToWrite);
 
 		// perform the write
-		digitalWrite(eeprom->writeEnablePin,HIGH);
-		usleep(100);
 		digitalWrite(eeprom->writeEnablePin,LOW);
-		// usleep(20000); Non C version <-
+		usleep(1);
+		digitalWrite(eeprom->writeEnablePin,HIGH);
+		// usleep(10000); //Non CMOS version <-
 		usleep(1000);
 		if (verify == 1){
 			if ( dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
@@ -588,18 +589,19 @@ int init(struct Eeprom *eeprom,int eepromModel){
 
 		if (eepromModel == AT28C64 || eepromModel == AT28C256){
 			eeprom->writeEnablePin =  15; // 14 // 8
+			
 			eeprom->addressPins[13] = 16; // 15 // 10
-			eeprom->addressPins[8] = 1; // 18 // 12
-			eeprom->addressPins[9] = 4; // 23 // 16
 			eeprom->addressPins[11] = 5; // 24 // 18
 		} else if (eepromModel == AT28C16){
-			eeprom->addressPins[8] = 1; // 18 // 12
-			eeprom->addressPins[9] = 4; // 23 // 16
 			eeprom->writeEnablePin =  5; // 24 // 18
 			eeprom->vccPin = 16; // 15 // 10
-			eeprom->addressPins[11] = 15; // 14 // 8 !Not Used
+			
 			eeprom->addressPins[13] = 15; // 14 // 8 !Not Used
+			eeprom->addressPins[11] = 15; // 14 // 8 !Not Used
 		}
+
+		eeprom->addressPins[8] = 1; // 18 // 12
+		eeprom->addressPins[9] = 4; // 23 // 16
 
 		eeprom->outputEnablePin =	   6; // 25 // 22
 		eeprom->addressPins[10] = 10; // 8 // 24
@@ -632,7 +634,7 @@ int init(struct Eeprom *eeprom,int eepromModel){
 		pinMode(eeprom->vccPin, OUTPUT);
 		digitalWrite(eeprom->chipEnablePin, LOW);
 		digitalWrite(eeprom->outputEnablePin, HIGH);
-		digitalWrite(eeprom->writeEnablePin, LOW);
+		digitalWrite(eeprom->writeEnablePin, HIGH);
 		digitalWrite(eeprom->vccPin, HIGH);
 	}
 	return 0;
