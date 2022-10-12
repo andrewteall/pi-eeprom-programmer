@@ -375,7 +375,6 @@ char readByteFromAddress(struct Eeprom* eeprom,unsigned int addressToRead){
 		byteVal <<= 1;
 		byteVal |= (digitalRead(eeprom->dataPins[i]) & 1);		
 	}
-
 	// return the number
 	return byteVal;
 }
@@ -402,7 +401,7 @@ int writeByteToAddress(struct Eeprom* eeprom,unsigned int addressToWrite, \
 		usleep(1);
 		digitalWrite(eeprom->writeEnablePin,HIGH);
 		// usleep(10000); //Non CMOS version <-
-		usleep(1000);
+		usleep(10000);
 		if (verify == 1){
 			if ( dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
 				ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
@@ -636,6 +635,7 @@ int init(struct Eeprom *eeprom,int eepromModel){
 		digitalWrite(eeprom->outputEnablePin, HIGH);
 		digitalWrite(eeprom->writeEnablePin, HIGH);
 		digitalWrite(eeprom->vccPin, HIGH);
+		// usleep(10000);
 	}
 	return 0;
 }

@@ -22,6 +22,7 @@ struct Eeprom{
     int vccPin;
     
     int model;
+    char type;
     int size;
     char numAddressPins;
     char numDataPins;
