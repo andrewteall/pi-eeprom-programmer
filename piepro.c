@@ -33,11 +33,8 @@ int main(int argc, char *argv[]){
 	int addressParam = 0;
 	int dataParam = 0;
 
-	// TODO: Add serial device support -p --parallel -s --serial
 	// TODO: Support start value for text files
-	// TODO: Add write cycle time adjustment from command line
-	// TODO: Add non-cmos support
-
+	
 	if (argc == 1){
 		printHelp();
 		return 1;
@@ -175,22 +172,33 @@ int main(int argc, char *argv[]){
 
 			// -m --model
 			if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--model")){
-				if (!strcmp(argv[i+1],"at28c16")){
-					eepromModel = AT28C16;
-				} else if (!strcmp(argv[i+1],"at28c64")) {
-					eepromModel = AT28C64;
-				} else if (!strcmp(argv[i+1],"at28c256")) {
-					eepromModel = AT28C256;
-				} else if (!strcmp(argv[i+1],"at24c01")) {
-					eepromModel = AT24C01;
-				} else if (!strcmp(argv[i+1],"at24c02")) {
-					eepromModel = AT24C02;
-				} else {
+				eepromModel = 0;
+				while(eepromModel != END && strcmp(argv[i+1],EEPROM_MODEL_STRINGS[eepromModel])){
+					eepromModel++;
+				}
+				if(eepromModel == END){
 					ulog(FATAL,"Unsupported ROM Model");
 					return 1;
 				}
-				ulog(INFO,"Setting rom model to %s",argv[i+1]);
+				ulog(INFO,"Setting rom model to %s",EEPROM_MODEL_STRINGS[eepromModel]);
 			}
+			// if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--model")){
+			// 	if (!strcmp(argv[i+1],"at28c16")){
+			// 		eepromModel = AT28C16;
+			// 	} else if (!strcmp(argv[i+1],"at28c64")) {
+			// 		eepromModel = AT28C64;
+			// 	} else if (!strcmp(argv[i+1],"at28c256")) {
+			// 		eepromModel = AT28C256;
+			// 	} else if (!strcmp(argv[i+1],"at24c01")) {
+			// 		eepromModel = AT24C01;
+			// 	} else if (!strcmp(argv[i+1],"at24c02")) {
+			// 		eepromModel = AT24C02;
+			// 	} else {
+			// 		ulog(FATAL,"Unsupported ROM Model");
+			// 		return 1;
+			// 	}
+			// 	  ulog(INFO,"Setting rom model to %s",argv[i+1]);
+			// }
 		}
 	}
 
@@ -638,7 +646,7 @@ int init(struct Eeprom *eeprom,int eepromModel){
 			
 			eeprom->addressPins[13] = 16; // 15 // 10
 			eeprom->addressPins[11] = 5; // 24 // 18
-		} else if (eepromModel == AT28C16){
+		} else if (eepromModel <= AT28C16){
 			eeprom->writeEnablePin =  5; // 24 // 18
 			eeprom->vccPin = 16; // 15 // 10
 
