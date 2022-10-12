@@ -4,6 +4,7 @@
 #include <stdarg.h>
 
 #include <wiringPi.h>
+#include <wiringPiI2C.h>
 
 #include "piepro.h"
 
@@ -26,6 +27,8 @@ int main(int argc, char *argv[]){
 	int action = WRITE_FILE_TO_ROM;
 	int fileType = TEXT_FILE;
 	int eepromModel = AT28C16;
+	int writeCycleUSec = -1;
+	char i2cAddress = 0x50;
 
 	int addressParam = 0;
 	int dataParam = 0;
@@ -93,6 +96,26 @@ int main(int argc, char *argv[]){
 				fileType = BINARY_FILE;
 			}
 
+			// -wd --write-delay
+			if (!strcmp(argv[i],"-wd") || !strcmp(argv[i],"--write-delay")){
+				ulog(INFO,"Setting write cycle delay time to %i",str2num(argv[i+1]));
+				writeCycleUSec = str2num(argv[i+1]);
+				if ( writeCycleUSec == -1){
+					ulog(FATAL,"Unsupported delay value");
+					return 1;
+				}
+			}
+
+			// -id --i2c-device-id
+			if (!strcmp(argv[i],"-id") || !strcmp(argv[i],"--i2c-device-id")){
+				ulog(INFO,"Setting I2C id to %i",str2num(argv[i+1]));
+				i2cAddress = str2num(argv[i+1]);
+				if ( i2cAddress == -1){
+					ulog(FATAL,"Unsupported I2C id value");
+					return 1;
+				}
+			}
+
 			// -d --dump
 			if (!strcmp(argv[i],"-d") || !strcmp(argv[i],"--dump")){
 				if (action == COMPARE_ROM_TO_FILE || action == WRITE_SINGLE_BYTE_TO_ROM){
@@ -158,6 +181,10 @@ int main(int argc, char *argv[]){
 					eepromModel = AT28C64;
 				} else if (!strcmp(argv[i+1],"at28c256")) {
 					eepromModel = AT28C256;
+				} else if (!strcmp(argv[i+1],"at24c01")) {
+					eepromModel = AT24C01;
+				} else if (!strcmp(argv[i+1],"at24c02")) {
+					eepromModel = AT24C02;
 				} else {
 					ulog(FATAL,"Unsupported ROM Model");
 					return 1;
@@ -166,13 +193,18 @@ int main(int argc, char *argv[]){
 			}
 		}
 	}
-	
-	// init
-	if (-1 == wiringPiSetup()) {
-		ulog(FATAL,"Failed to setup Wiring Pi!");
-		return 1;
-	}
 
+	// init
+	if (eepromModel >= AT24C01 && eepromModel <= AT24C512){
+		eeprom.fd = wiringPiI2CSetup(i2cAddress);		
+	} else {
+		if (-1 == wiringPiSetup()) {
+			ulog(FATAL,"Failed to setup Wiring Pi!");
+			return 1;
+		}
+	}	
+
+	eeprom.writeCycleWait = writeCycleUSec;
 	if ( 0 != init(&eeprom, eepromModel)){
 		return 1;
 	}
@@ -360,20 +392,24 @@ int compareBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile, long begin
 
 /* Read byte from specified Address */
 char readByteFromAddress(struct Eeprom* eeprom,unsigned int addressToRead){
-	// set the address
-	setAddressPins(eeprom,addressToRead);
-	// enable output from the chip
-	digitalWrite(eeprom->outputEnablePin,LOW);
-	// set the rpi to input on it's gpio data lines
-	for(int i=0;i<eeprom->numDataPins;i++){
-		pinMode(eeprom->dataPins[i],INPUT);
-		pullUpDnControl(eeprom->dataPins[i],PUD_DOWN);
-	}
-	// read the eeprom and store to string
 	char byteVal = 0;
-	for(int i=eeprom->numDataPins-1;i>=0;i--){
-		byteVal <<= 1;
-		byteVal |= (digitalRead(eeprom->dataPins[i]) & 1);		
+	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
+		byteVal = wiringPiI2CReadReg8(eeprom->fd, addressToRead);
+	} else {
+		// set the address
+		setAddressPins(eeprom,addressToRead);
+		// enable output from the chip
+		digitalWrite(eeprom->outputEnablePin,LOW);
+		// set the rpi to input on it's gpio data lines
+		for(int i=0;i<eeprom->numDataPins;i++){
+			pinMode(eeprom->dataPins[i],INPUT);
+			pullUpDnControl(eeprom->dataPins[i],PUD_DOWN);
+		}
+		// read the eeprom and store to string
+		for(int i=eeprom->numDataPins-1;i>=0;i--){
+			byteVal <<= 1;
+			byteVal |= (digitalRead(eeprom->dataPins[i]) & 1);		
+		}
 	}
 	// return the number
 	return byteVal;
@@ -383,38 +419,55 @@ char readByteFromAddress(struct Eeprom* eeprom,unsigned int addressToRead){
 int writeByteToAddress(struct Eeprom* eeprom,unsigned int addressToWrite, \
 						char dataToWrite,char verify,char force, int* byteWriteCounter){
 	int err = 0;
-	if ( force || dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
-		// usleep(200);
-		// set the address
-		setAddressPins(eeprom,addressToWrite);
-		// disable output from the chip
-		digitalWrite(eeprom->outputEnablePin,HIGH);
-		// set the rpi to output on it's gpio data lines
-		for(int i=0;i<eeprom->numDataPins;i++){
-				pinMode(eeprom->dataPins[i], OUTPUT);
-		}
-		// Set the data eeprom to the data to be written
-		setDataPins(eeprom,dataToWrite);
-
-		// perform the write
-		digitalWrite(eeprom->writeEnablePin,LOW);
-		usleep(1);
-		digitalWrite(eeprom->writeEnablePin,HIGH);
-		// usleep(10000); //Non CMOS version <-
-		usleep(10000);
-		if (verify == 1){
-			if ( dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
+	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
+		if ( force || dataToWrite != wiringPiI2CReadReg8(eeprom->fd, addressToWrite )){
+			waitWriteCycle(eeprom->writeCycleWait);
+			if (-1 != wiringPiI2CWriteReg8(eeprom->fd, addressToWrite, dataToWrite )){
+				ulog(INFO,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+			} else {
 				ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
 				if(byteWriteCounter != NULL){
 					(*byteWriteCounter)--;
 				}
 				err = -1;
-			} else {
-				ulog(INFO,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+			}
+			if(byteWriteCounter != NULL){
+				(*byteWriteCounter)++;
 			}
 		}
-		if(byteWriteCounter != NULL){
-			(*byteWriteCounter)++;
+	} else {
+		if ( force || dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
+			// set the address
+			setAddressPins(eeprom,addressToWrite);
+			// disable output from the chip
+			digitalWrite(eeprom->outputEnablePin,HIGH);
+			// set the rpi to output on it's gpio data lines
+			for(int i=0;i<eeprom->numDataPins;i++){
+					pinMode(eeprom->dataPins[i], OUTPUT);
+			}
+			// Set the data eeprom to the data to be written
+			setDataPins(eeprom,dataToWrite);
+
+			// perform the write
+			digitalWrite(eeprom->writeEnablePin,LOW);
+			usleep(1);
+			digitalWrite(eeprom->writeEnablePin,HIGH);
+			// usleep(10000); //Non CMOS version <-
+			waitWriteCycle(eeprom->writeCycleWait);
+			if (verify == 1){
+				if ( dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
+					ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
+					if(byteWriteCounter != NULL){
+						(*byteWriteCounter)--;
+					}
+					err = -1;
+				} else {
+					ulog(INFO,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+				}
+			}
+			if(byteWriteCounter != NULL){
+				(*byteWriteCounter)++;
+			}
 		}
 	}
 	return err;
@@ -533,37 +586,31 @@ long expo(int base, int power){
 /* Initialize rpi to write */
 int init(struct Eeprom *eeprom,int eepromModel){
 	eeprom->model = eepromModel;
-	eeprom->size = EEPROMMODELSIZES[eepromModel];
+	eeprom->size = EEPROM_MODEL_SIZES[eepromModel];
 	eeprom->numAddressPins = (EEPROM_NUM_ADDRESS_PINS[eepromModel]);
 	eeprom->numDataPins = (EEPROM_NUM_DATA_PINS[eepromModel]);
+	if(eeprom->writeCycleWait == -1){
+		eeprom->writeCycleWait = EEPROM_WRITE_CYCLE_USEC[eepromModel];
+	}
 	
-
-	if (eepromModel >= AT24C02 && eepromModel <= AT24C256){
+	if (eepromModel >= AT24C01 && eepromModel <= AT24C256){
 		// eeprom->addressPins[0] = 23; // 13 // 33
 		// eeprom->addressPins[1] = 24; // 19 // 35
 		// eeprom->addressPins[2] = 25; // 26 // 37
 
 		// eeprom->vccPin = 26; // 12 // 32
 		// eeprom->writeProtectPin = 27; // 16 // 36
-		// eeprom->sclPin = 28; // 20 // 38
-		// eeprom->sdaPin = 29; // 21 // 40
+
 
 		// for(int i=0;i<3;i++){
 		// 	pinMode(eeprom->addressPins[i], OUTPUT);
 		// 	digitalWrite(eeprom->addressPins[i], LOW);
 		// }
 
-		// pinMode(eeprom->sclPin, OUTPUT);
-		// pinMode(eeprom->sdaPin, OUTPUT);
 		// pinMode(eeprom->writeProtectPin, OUTPUT);
 		// pinMode(eeprom->vccPin, OUTPUT);
-
-		// digitalWrite(eeprom->sclPin, HIGH);
-		// digitalWrite(eeprom->sdaPin, HIGH);
 		// digitalWrite(eeprom->writeProtectPin, LOW);
 		// digitalWrite(eeprom->vccPin, HIGH);
-		ulog(ERROR,"EEPROM model %s not supported. Exiting...\n");
-		return 1;
 
 	} else {
 				/*   WiPi // GPIO // Pin   */ 
@@ -594,9 +641,7 @@ int init(struct Eeprom *eeprom,int eepromModel){
 		} else if (eepromModel == AT28C16){
 			eeprom->writeEnablePin =  5; // 24 // 18
 			eeprom->vccPin = 16; // 15 // 10
-			
-			eeprom->addressPins[13] = 15; // 14 // 8 !Not Used
-			eeprom->addressPins[11] = 15; // 14 // 8 !Not Used
+
 		}
 
 		eeprom->addressPins[8] = 1; // 18 // 12
@@ -635,9 +680,13 @@ int init(struct Eeprom *eeprom,int eepromModel){
 		digitalWrite(eeprom->outputEnablePin, HIGH);
 		digitalWrite(eeprom->writeEnablePin, HIGH);
 		digitalWrite(eeprom->vccPin, HIGH);
-		// usleep(10000);
 	}
+	usleep(5000); //startup delay
 	return 0;
+}
+
+void waitWriteCycle(int usec){
+	usleep(usec);
 }
 
 /* Prints help message */
@@ -650,6 +699,7 @@ void printHelp(){
 	printf(" -c,   	--compare		Compare file and EEPROM and print differences.\n");
 	printf(" -d N, 	--dump N		Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
 	printf(" -f,   	--force			Force writing of every bite instead of checking for existing value first.\n");
+	printf(" -id,   --i2c-device-id	The Address id of the I2C device.\n");
 	printf(" -h,   	--help			Print this message and exit.\n");
 	printf(" -l N, 	--limit N		Specify the maximum address to operate.\n");
 	printf("       	--no-validate-write	Do not perform a read directly after writing to verify the data was written.\n");
@@ -658,15 +708,16 @@ void printHelp(){
 	printf(" -v N, 	--v[vvvv]		Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
 	printf(" -w ADDRESS DATA, \n");
 	printf("\t--write ADDRESS DATA	Write specified DATA to ADDRESS.\n");
+	printf(" -wd N, --write-delay N		Number of microseconds to delay between writes.\n");
 	printf("\n");
 }
 
 /* Prints the Rom's Contents to the specified limit */
 void printROMContents(struct Eeprom* eeprom, long begin,long limit,int format){
-	if (limit == -1 || limit > EEPROMMODELSIZES[eeprom->model]){
-		limit = EEPROMMODELSIZES[eeprom->model];
+	if (limit == -1 || limit > EEPROM_MODEL_SIZES[eeprom->model]){
+		limit = EEPROM_MODEL_SIZES[eeprom->model];
 	}
-
+	
 	switch (format) {
 	case 0:
 		for (int i=begin;i<limit;i++){

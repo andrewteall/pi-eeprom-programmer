@@ -9,9 +9,10 @@ const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEB
 #endif
 
 enum EEPROM_MODEL {AT28C16,AT28C64,AT28C256,AT24C01,AT24C02,AT24C256,AT24C512};
-const int EEPROMMODELSIZES[] = {2048,8192,32768,1024,2048,32768,65536};
-const int EEPROM_NUM_ADDRESS_PINS[] = {11,13,15,1,1,1,1};
-const int EEPROM_NUM_DATA_PINS[] = {8,8,8,1,1,1,1};
+const int EEPROM_MODEL_SIZES[] = {2048,8192,32768,1024,2048,32768,65536};
+const int EEPROM_NUM_ADDRESS_PINS[] = {11,13,15,10,11,1,1};
+const int EEPROM_NUM_DATA_PINS[] = {8,8,8,8,8,1,1};
+const int EEPROM_WRITE_CYCLE_USEC[] = {10000,10000,10000,5000,5000,5000,5000};
 
 struct Eeprom{
     int addressPins[MAX_ADDRESS_PINS];
@@ -26,6 +27,9 @@ struct Eeprom{
     int size;
     char numAddressPins;
     char numDataPins;
+    unsigned int writeCycleWait;
+    
+    int fd;
 };
 
 int init(struct Eeprom*, int);
@@ -40,6 +44,8 @@ int writeByteToAddress(struct Eeprom*,unsigned int, char, char,char,int*);
 
 void setDataPins(struct Eeprom*,char);
 void setAddressPins(struct Eeprom*,unsigned int);
+
+void waitWriteCycle(int);
 
 void printHelp(void);
 void printROMContents(struct Eeprom*,long,long,int);
