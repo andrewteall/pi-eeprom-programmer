@@ -34,6 +34,7 @@ int main(int argc, char *argv[]){
 	int dataParam = 0;
 
 	// TODO: Setup data Polling
+	// TODO: Support Page Writes if supported
 	
 	if (argc == 1){
 		printHelp();
@@ -119,7 +120,7 @@ int main(int argc, char *argv[]){
 					ulog(WARNING, \
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
-					ulog(INFO,"Dumping ROM to standard out");
+					ulog(INFO,"Dumping EEPROM to standard out");
 					dumpFormat = str2num(argv[i+1]);
 					action = DUMP_ROM;
 				}
@@ -153,7 +154,7 @@ int main(int argc, char *argv[]){
 					ulog(WARNING, \
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
-					ulog(INFO,"Comparing ROM to File");
+					ulog(INFO,"Comparing EEPROM to File");
 					action = COMPARE_ROM_TO_FILE;
 				}
 			}
@@ -173,14 +174,18 @@ int main(int argc, char *argv[]){
 			// -m --model
 			if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--model")){
 				eepromModel = 0;
-				while(eepromModel != END && strcmp(argv[i+1],EEPROM_MODEL_STRINGS[eepromModel])){
+				while(eepromModel < END && strcmp(argv[i+1],EEPROM_MODEL_STRINGS[eepromModel])){
 					eepromModel++;
 				}
 				if(eepromModel == END){
-					ulog(FATAL,"Unsupported ROM Model");
+					ulog(INFO,"Supported EEPROM Models:");
+					for(int i=0; i < END-1;i++){
+						ulog(INFO,"\t%s",EEPROM_MODEL_STRINGS[i]);
+					}
+					ulog(FATAL,"Unsupported EEPROM Model");
 					return 1;
 				}
-				ulog(INFO,"Setting rom model to %s",EEPROM_MODEL_STRINGS[eepromModel]);
+				ulog(INFO,"Setting EEPROM model to %s",EEPROM_MODEL_STRINGS[eepromModel]);
 			}
 		}
 	}
@@ -296,8 +301,12 @@ int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile, \
 	return 0;
 }
 
+/* Compare a text file to EEPRom */
 int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned long begin, unsigned long limit){
-	int addressToCompare = 0, dataToCompare = 0, err = 0;
+	int addressToCompare = 0;
+	int dataToCompare = 0;
+	int err = 0;
+	int bytesNotMatched = 0;
 
 	int counter = 0;
 	
@@ -338,8 +347,9 @@ int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned lon
 			dataToCompare = binStr2num(textFiledata);
 			if (addressToCompare >= begin){
 				if (readByteFromAddress(eeprom,addressToCompare) != dataToCompare){
-					ulog(INFO,"Byte at Address 0x%02x does not match. Rom: %i File: %i", \
+					ulog(DEBUG,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
 						addressToCompare,readByteFromAddress(eeprom,addressToCompare),dataToCompare);
+					bytesNotMatched++;
 					err = 1;
 				}
 			}
@@ -349,12 +359,19 @@ int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned lon
 			counter++;
 		}
 	}
+	if ( bytesNotMatched == 0) {
+		ulog(INFO,"All bytes match.");
+	} else {
+		ulog(INFO,"%i bytes do not match",bytesNotMatched);
+	}
 	return err;
 }
 
-/* Open and write a binary file to Memory */
+/* Open and write a binary file to the EEPROM */
 int writeBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile,int validate,char force,long begin, unsigned long limit){
-	int c,addressToWrite = 0,err=0;
+	int c;
+	int addressToWrite = 0;
+	int err=0;
 	int byteWriteCounter = 0;
 
 	while (addressToWrite < begin && (fgetc(memoryFile) != EOF)){
@@ -368,9 +385,12 @@ int writeBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile,int validate,
 	return err;
 }
 
-/* Compare a binary file to Rom */
+/* Compare a binary file to EEPRom */
 int compareBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile, long begin, unsigned long limit){
-	int c,addressToCompare = 0, err = 0;
+	char c;
+	int err = 0;
+	int addressToCompare = 0;
+	int bytesNotMatched = 0;
 
 	while (addressToCompare < begin && (fgetc(memoryFile) != EOF)){
 		addressToCompare++;
@@ -378,11 +398,17 @@ int compareBinaryFileToEEPROM(struct Eeprom* eeprom,FILE *memoryFile, long begin
 
 	while(((c = fgetc(memoryFile)) != EOF) && addressToCompare < limit) {
 		if (readByteFromAddress(eeprom,addressToCompare) != (char)c){
-			ulog(INFO,"Byte at Address 0x%02x does not match. Rom: %i File: %i", \
+			ulog(DEBUG,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
 				addressToCompare,readByteFromAddress(eeprom,addressToCompare),c);
+			bytesNotMatched++;
 			err = 1;
 		}
 		addressToCompare++;
+	}
+	if ( bytesNotMatched == 0) {
+		ulog(INFO,"All bytes match.");
+	} else {
+		ulog(INFO,"%i bytes do not match",bytesNotMatched);
 	}
 	return err;
 }
@@ -580,7 +606,7 @@ long expo(int base, int power){
     return result;
 }
 
-/* Initialize rpi to write */
+/* Initialize Raspberry Pi to perform action on EEPROM */
 int init(struct Eeprom *eeprom,int eepromModel){
 	eeprom->model = eepromModel;
 	eeprom->size = EEPROM_MODEL_SIZES[eepromModel];
@@ -686,6 +712,7 @@ int init(struct Eeprom *eeprom,int eepromModel){
 	return 0;
 }
 
+/* More descriptive wrapper around usleep to show the wait time for writes in microseconds */
 void waitWriteCycle(int usec){
 	usleep(usec);
 }
@@ -696,7 +723,7 @@ void printHelp(){
 	printf("Options:\n");
 	printf(" -b,   --binary			Interpret file as a binary. Default: text\n");
 	printf("					Text File format:\n");
-	printf("					00000000 00000000\n");
+	printf("					[00000000]00000000 00000000\n");
 	printf(" -c,   	--compare		Compare file and EEPROM and print differences.\n");
 	printf(" -d N, 	--dump N		Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
 	printf(" -f,   	--force			Force writing of every byte instead of checking for existing value first.\n");
@@ -713,7 +740,7 @@ void printHelp(){
 	printf("\n");
 }
 
-/* Prints the Rom's Contents to the specified limit */
+/* Prints the EEPRom's Contents to the specified limit */
 void printROMContents(struct Eeprom* eeprom, long begin,long limit,int format){
 	if (limit == -1 || limit > EEPROM_MODEL_SIZES[eeprom->model]){
 		limit = EEPROM_MODEL_SIZES[eeprom->model];
@@ -776,7 +803,7 @@ void printROMContents(struct Eeprom* eeprom, long begin,long limit,int format){
 		break;
 	}
 }
-
+/* Logging method to supprot filtering out logs by verbosity */
 void ulog(int verbosity, const char* logMessage,...) {
 	if (verbosity <= loggingLevel){
 		char logBuf[120];

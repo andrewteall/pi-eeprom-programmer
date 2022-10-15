@@ -20,7 +20,7 @@ const int EEPROM_NUM_ADDRESS_PINS[] = {11,11, \
                                         10,11,1,1};
 const int EEPROM_NUM_DATA_PINS[] = {8,8, \
                                     8,8,8, \
-                                    8,8,1,1};
+                                    8,8,8,8};
 const int EEPROM_WRITE_CYCLE_USEC[] = {10000,10000, \
                                         5000,10000,1000, \
                                         5000,5000,5000,5000};
