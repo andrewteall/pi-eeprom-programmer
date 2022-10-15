@@ -41,6 +41,8 @@ struct Eeprom{
     unsigned int writeCycleWait;
 
     int fd;
+    int i2cId;
+    char writeProtectPin;
 };
 
 int init(struct Eeprom*, int);

@@ -28,7 +28,7 @@ int main(int argc, char *argv[]){
 	int fileType = TEXT_FILE;
 	int eepromModel = AT28C16;
 	int writeCycleUSec = -1;
-	char i2cAddress = 0x50;
+	char i2cId = 0x50;
 
 	int addressParam = 0;
 	int dataParam = 0;
@@ -106,8 +106,8 @@ int main(int argc, char *argv[]){
 			// -id --i2c-device-id
 			if (!strcmp(argv[i],"-id") || !strcmp(argv[i],"--i2c-device-id")){
 				ulog(INFO,"Setting I2C id to %i",str2num(argv[i+1]));
-				i2cAddress = str2num(argv[i+1]);
-				if ( i2cAddress == -1){
+				i2cId = str2num(argv[i+1]);
+				if ( i2cId == -1){
 					ulog(FATAL,"Unsupported I2C id value");
 					return 1;
 				}
@@ -187,7 +187,7 @@ int main(int argc, char *argv[]){
 
 	// init
 	if (eepromModel >= AT24C01 && eepromModel <= AT24C512){
-		eeprom.fd = wiringPiI2CSetup(i2cAddress);		
+		eeprom.fd = wiringPiI2CSetup(i2cId);		
 	} else {
 		if (-1 == wiringPiSetup()) {
 			ulog(FATAL,"Failed to setup Wiring Pi!");
@@ -195,6 +195,7 @@ int main(int argc, char *argv[]){
 		}
 	}	
 
+	eeprom.i2cId = i2cId;
 	eeprom.writeCycleWait = writeCycleUSec;
 	if ( 0 != init(&eeprom, eepromModel)){
 		return 1;
@@ -593,23 +594,27 @@ int init(struct Eeprom *eeprom,int eepromModel){
 		// 8; // 2 // 3 // I2C Pins 
 		// 9; // 3 // 5 // I2C Pins
 
-		// eeprom->addressPins[0] = 23; // 13 // 33
-		// eeprom->addressPins[1] = 24; // 19 // 35
-		// eeprom->addressPins[2] = 25; // 26 // 37
+		eeprom->addressPins[0] = 23; // 13 // 33
+		eeprom->addressPins[1] = 24; // 19 // 35
+		eeprom->addressPins[2] = 25; // 26 // 37
 
-		// eeprom->vccPin = 26; // 12 // 32
-		// eeprom->writeProtectPin = 27; // 16 // 36
+		eeprom->vccPin = 26; // 12 // 32
+		eeprom->writeProtectPin = 27; // 16 // 36
 
 
-		// for(int i=0;i<3;i++){
-		// 	pinMode(eeprom->addressPins[i], OUTPUT);
-		// 	digitalWrite(eeprom->addressPins[i], LOW);
-		// }
+		for(int i=0;i<3;i++){
+			pinMode(eeprom->addressPins[i], OUTPUT);
+			digitalWrite(eeprom->addressPins[i], LOW);
+		}
 
-		// pinMode(eeprom->writeProtectPin, OUTPUT);
-		// pinMode(eeprom->vccPin, OUTPUT);
-		// digitalWrite(eeprom->writeProtectPin, LOW);
-		// digitalWrite(eeprom->vccPin, HIGH);
+		if (eeprom->i2cId != 0x50){
+			setAddressPins(eeprom,eeprom->i2cId - 0x50);
+		}
+
+		pinMode(eeprom->writeProtectPin, OUTPUT);
+		pinMode(eeprom->vccPin, OUTPUT);
+		digitalWrite(eeprom->writeProtectPin, LOW);
+		digitalWrite(eeprom->vccPin, HIGH);
 
 	} else {
 				/*   WiPi // GPIO // Pin   */ 
