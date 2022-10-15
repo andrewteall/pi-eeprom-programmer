@@ -33,6 +33,7 @@ int main(int argc, char *argv[]){
 	int addressParam = 0;
 	int dataParam = 0;
 
+	// TODO: Setup data Polling
 	// TODO: Support start value for text files
 	
 	if (argc == 1){
@@ -182,23 +183,6 @@ int main(int argc, char *argv[]){
 				}
 				ulog(INFO,"Setting rom model to %s",EEPROM_MODEL_STRINGS[eepromModel]);
 			}
-			// if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--model")){
-			// 	if (!strcmp(argv[i+1],"at28c16")){
-			// 		eepromModel = AT28C16;
-			// 	} else if (!strcmp(argv[i+1],"at28c64")) {
-			// 		eepromModel = AT28C64;
-			// 	} else if (!strcmp(argv[i+1],"at28c256")) {
-			// 		eepromModel = AT28C256;
-			// 	} else if (!strcmp(argv[i+1],"at24c01")) {
-			// 		eepromModel = AT24C01;
-			// 	} else if (!strcmp(argv[i+1],"at24c02")) {
-			// 		eepromModel = AT24C02;
-			// 	} else {
-			// 		ulog(FATAL,"Unsupported ROM Model");
-			// 		return 1;
-			// 	}
-			// 	  ulog(INFO,"Setting rom model to %s",argv[i+1]);
-			// }
 		}
 	}
 
@@ -602,6 +586,9 @@ int init(struct Eeprom *eeprom,int eepromModel){
 	}
 	
 	if (eepromModel >= AT24C01 && eepromModel <= AT24C256){
+		// 8; // 2 // 3 // I2C Pins 
+		// 9; // 3 // 5 // I2C Pins
+
 		// eeprom->addressPins[0] = 23; // 13 // 33
 		// eeprom->addressPins[1] = 24; // 19 // 35
 		// eeprom->addressPins[2] = 25; // 26 // 37
@@ -622,25 +609,22 @@ int init(struct Eeprom *eeprom,int eepromModel){
 
 	} else {
 				/*   WiPi // GPIO // Pin   */ 
-		eeprom->addressPins[14] = 8; // 2 // 3 !Not Used on AT28C16
-		eeprom->addressPins[12] = 9; // 3 // 5 !Not Used on AT28C16
+		eeprom->addressPins[14] = 7; // 4 // 7   !Not Used on AT28C16
+		eeprom->addressPins[12] = 0; // 17 // 11 !Not Used on AT28C16
 		
-		eeprom->addressPins[7] = 7; // 4 // 7
-		eeprom->addressPins[6] = 0; // 17 // 11
-		eeprom->addressPins[5] = 2; // 27 // 13
-		eeprom->addressPins[4] = 3; // 22 // 15
-		eeprom->addressPins[3] = 12; // 10 // 19
-		eeprom->addressPins[2] = 13; // 9 // 21
-		eeprom->addressPins[1] = 14; // 11 // 23
-		eeprom->addressPins[0] = 30; // 0 // 27
+		eeprom->addressPins[7] = 2; // 27 // 13
+		eeprom->addressPins[6] = 3; // 22 // 15
+		eeprom->addressPins[5] = 12; // 10 // 19
+		eeprom->addressPins[4] = 13; // 9 // 21
+		eeprom->addressPins[3] = 14; // 11 // 23
+		eeprom->addressPins[2] = 30; // 0 // 27
+		eeprom->addressPins[1] = 21; // 5 // 29
+		eeprom->addressPins[0] = 22; // 6 // 31
 
-		eeprom->dataPins[0] = 21; // 5 // 29
-		eeprom->dataPins[1] = 22; // 6 // 31
-		eeprom->dataPins[2] = 23; // 13 // 33
-		// 24; // 19 // 35
-		// 25; // 26 // 37
-
-
+		eeprom->dataPins[0] = 23; // 13 // 33
+		eeprom->dataPins[1] = 24; // 19 // 35
+		eeprom->dataPins[2] = 25; // 26 // 37
+		
 		if (eepromModel == AT28C64 || eepromModel == AT28C256){
 			eeprom->writeEnablePin =  15; // 14 // 8
 			
@@ -706,7 +690,7 @@ void printHelp(){
 	printf("					00000000 00000000\n");
 	printf(" -c,   	--compare		Compare file and EEPROM and print differences.\n");
 	printf(" -d N, 	--dump N		Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
-	printf(" -f,   	--force			Force writing of every bite instead of checking for existing value first.\n");
+	printf(" -f,   	--force			Force writing of every byte instead of checking for existing value first.\n");
 	printf(" -id,   --i2c-device-id	The Address id of the I2C device.\n");
 	printf(" -h,   	--help			Print this message and exit.\n");
 	printf(" -l N, 	--limit N		Specify the maximum address to operate.\n");
