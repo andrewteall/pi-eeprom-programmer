@@ -46,8 +46,8 @@ struct Eeprom{
 int init(struct Eeprom*, int);
 
 int compareBinaryFileToEEPROM(struct Eeprom*, FILE*, long, unsigned long);
-int compareTextFileToEEPROM(struct Eeprom*, FILE*,unsigned long);
-int writeTextFileToEEPROM(struct Eeprom*, FILE*, int, char,unsigned long);
+int compareTextFileToEEPROM(struct Eeprom*, FILE*, unsigned long, unsigned long);
+int writeTextFileToEEPROM(struct Eeprom*, FILE*, int, char, unsigned long, unsigned long);
 int writeBinaryFileToEEPROM(struct Eeprom*, FILE*, int, char, long, unsigned long);
 
 char readByteFromAddress(struct Eeprom*,unsigned int);

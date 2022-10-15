@@ -34,7 +34,6 @@ int main(int argc, char *argv[]){
 	int dataParam = 0;
 
 	// TODO: Setup data Polling
-	// TODO: Support start value for text files
 	
 	if (argc == 1){
 		printHelp();
@@ -212,13 +211,13 @@ int main(int argc, char *argv[]){
 
 			switch(fileType | (action<<8)){
 				case TEXT_FILE| (WRITE_FILE_TO_ROM<<8):
-					writeTextFileToEEPROM(&eeprom,romFile,validateWrite, force, limit);
+					writeTextFileToEEPROM(&eeprom,romFile,validateWrite, force, startValue, limit);
 					break;
 				case BINARY_FILE | (WRITE_FILE_TO_ROM<<8):
 					writeBinaryFileToEEPROM(&eeprom,romFile,validateWrite,force,startValue,limit);
 					break;
 				case TEXT_FILE | (COMPARE_ROM_TO_FILE<<8):
-					if(compareTextFileToEEPROM(&eeprom,romFile,limit)){
+					if(compareTextFileToEEPROM(&eeprom,romFile, startValue, limit)){
 						ulog(ERROR,"EEPROM does not match file");
 					}
 					break;
@@ -242,7 +241,8 @@ int main(int argc, char *argv[]){
 }
 
 /* Open and write a text file to Memory */
-int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, char force, unsigned long limit){
+int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile, \
+							int validate, char force, unsigned long begin, unsigned long limit){
 	int counter = 0;
 	
 	char textFileAddress[eeprom->numAddressPins+1];
@@ -281,8 +281,10 @@ int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, 
 			}
 			// ulog(DEBUG,"Writing to File %s  %s",textFileAddress,textFiledata);
 			// ulog(DEBUG,"Writing to File %i  %i",binStr2num(textFileAddress),binStr2num(textFiledata));
-			err = writeByteToAddress( \
+			if (binStr2num(textFileAddress) >= begin){
+				err = writeByteToAddress( \
 							eeprom,binStr2num(textFileAddress),binStr2num(textFiledata),validate,force,&byteWriteCounter);
+			}
 			addressLength = 0;
 			dataLength = 0;
 			haveNotReachedSeparator = 1;
@@ -293,7 +295,7 @@ int writeTextFileToEEPROM(struct Eeprom *eeprom, FILE *memoryFile,int validate, 
 	return 0;
 }
 
-int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned long limit){
+int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned long begin, unsigned long limit){
 	int addressToCompare = 0, dataToCompare = 0, err = 0;
 
 	int counter = 0;
@@ -333,10 +335,12 @@ int compareTextFileToEEPROM(struct Eeprom *eeprom,FILE *memoryFile, unsigned lon
 			}
 			addressToCompare  = binStr2num(textFileAddress);
 			dataToCompare = binStr2num(textFiledata);
-			if (readByteFromAddress(eeprom,addressToCompare) != dataToCompare){
-				ulog(INFO,"Byte at Address 0x%02x does not match. Rom: %i File: %i", \
-					addressToCompare,readByteFromAddress(eeprom,addressToCompare),dataToCompare);
-				err = 1;
+			if (addressToCompare >= begin){
+				if (readByteFromAddress(eeprom,addressToCompare) != dataToCompare){
+					ulog(INFO,"Byte at Address 0x%02x does not match. Rom: %i File: %i", \
+						addressToCompare,readByteFromAddress(eeprom,addressToCompare),dataToCompare);
+					err = 1;
+				}
 			}
 			addressLength = 0;
 			dataLength = 0;
