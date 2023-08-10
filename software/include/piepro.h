@@ -1,12 +1,17 @@
+#include "utils.h"
+
 #define MAX_ADDRESS_PINS 15
 #define MAX_DATA_PINS 8
 
-#ifndef ULOG_H
-#define ULOG_H
-void ulog(int,const char*,...);
-enum LOGLEVEL {OFF,FATAL,ERROR,WARNING,INFO,DEBUG};
-const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG",};
-#endif
+/* Delete After Adding GPIO Calls*/
+#define LOW 0
+#define HIGH 1
+#define INPUT 0
+#define OUTPUT 0
+#define PUD_DOWN 0
+#define PUD_UP 0
+#define PUD_OFF 0
+/*********************************/
 
 enum EEPROM_MODEL {XL2816,XL28C16,AT28C16,AT28C64,AT28C256,AT24C01,AT24C02,AT24C256,AT24C512,END};
 const char* EEPROM_MODEL_STRINGS[] = {"xl2816","xl28c16", \
@@ -25,7 +30,7 @@ const int EEPROM_WRITE_CYCLE_USEC[] = {10000,10000, \
                                         5000,10000,1000, \
                                         5000,5000,5000,5000};
 
-struct Eeprom{
+struct EEPROM{
     int addressPins[MAX_ADDRESS_PINS];
     int dataPins[MAX_DATA_PINS];
     int writeEnablePin;
@@ -45,23 +50,23 @@ struct Eeprom{
     char writeProtectPin;
 };
 
-int init(struct Eeprom*, int);
+int init(struct EEPROM*, int);
 
-int compareBinaryFileToEEPROM(struct Eeprom*, FILE*, long, unsigned long);
-int compareTextFileToEEPROM(struct Eeprom*, FILE*, unsigned long, unsigned long);
-int writeTextFileToEEPROM(struct Eeprom*, FILE*, int, char, unsigned long, unsigned long);
-int writeBinaryFileToEEPROM(struct Eeprom*, FILE*, int, char, long, unsigned long);
+int compareBinaryFileToEEPROM(struct EEPROM*, FILE*, struct OPTIONS*);
+int compareTextFileToEEPROM(struct EEPROM*, FILE*, struct OPTIONS*);
+int writeTextFileToEEPROM(struct EEPROM*, FILE*, struct OPTIONS*);
+int writeBinaryFileToEEPROM(struct EEPROM*, FILE*, struct OPTIONS*);
 
-char readByteFromAddress(struct Eeprom*,unsigned int);
-int writeByteToAddress(struct Eeprom*,unsigned int, char, char,char,int*);
+char readByteFromAddress(struct EEPROM*,unsigned int);
+int writeByteToAddress(struct EEPROM*,unsigned int, char, struct OPTIONS*,int*);
 
-void setDataPins(struct Eeprom*,char);
-void setAddressPins(struct Eeprom*,unsigned int);
+void setDataPins(struct EEPROM*,char);
+void setAddressPins(struct EEPROM*,unsigned int);
 
 void waitWriteCycle(int);
 
 void printHelp(void);
-void printROMContents(struct Eeprom*,long,long,int);
+void printROMContents(struct EEPROM*, struct OPTIONS*);
 
 char *num2binStr(char*,int,int);
 int binStr2num(const char*);
