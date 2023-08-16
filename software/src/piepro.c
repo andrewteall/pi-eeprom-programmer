@@ -3,10 +3,211 @@
 #include <unistd.h>
 
 #include "piepro.h"
+#include "gpio.h"
+
+	static char *chipname = "gpiochip0";
+    static struct gpiod_chip *chip = NULL;
+    static struct gpiod_line* gpioLines[40];
+
+	const char* EEPROM_MODEL_STRINGS[] = {"xl2816","xl28c16", \
+                                        "at28c16","at28c64","at28c256", \
+                                        "at24c01","at24c02","at24c256","at24c512"};
+    const int EEPROM_MODEL_SIZES[] = {2048,2048, \
+                                        2048,8192,32768, \
+                                        1024,2048,32768,65536};
+    const int EEPROM_NUM_ADDRESS_PINS[] = {11,11, \
+                                            11,13,15, \
+                                            10,11,1,1};
+    const int EEPROM_NUM_DATA_PINS[] = {8,8, \
+                                        8,8,8, \
+                                        8,8,8,8};
+    const int EEPROM_WRITE_CYCLE_USEC[] = {10000,10000, \
+                                            5000,10000,1000, \
+                                            5000,5000,5000,5000};
+	
+int compareBinaryFileToEEPROM(struct EEPROM*, FILE*, struct OPTIONS*);
+int compareTextFileToEEPROM(struct EEPROM*, FILE*, struct OPTIONS*);
+int writeTextFileToEEPROM(struct EEPROM*, FILE*, struct OPTIONS*);
+int writeBinaryFileToEEPROM(struct EEPROM*, FILE*, struct OPTIONS*);
+
+/* Local function wrapper to writeGPIO  */
+void setPinLevel(struct gpiod_line **gpioLines, int pin, int level){
+	writeGPIO(gpioLines,pin, level);
+}
+
+/* Local function wrapper to readGPIO  */
+int getPinLevel(struct gpiod_line **gpioLines, int pin){
+	return readGPIO(gpioLines,pin);
+}
+
+/* Local function wrapper to setPinModeGPIO  */
+void setPinMode(struct gpiod_line **gpioLines, int pin, int mode){
+	setPinModeGPIO(chip,gpioLines,pin, mode);
+}
+
+/* Local function wrapper to readByteI2C  */
+int getByteI2C(int fd, int address){
+	return readByteI2C(fd,address);
+}
+
+int setByteI2C(int fd, int address, char data){
+	return writeByteI2C(fd,address,data);
+}
+
+/* Set Address eeprom to value to read from or write to */
+void setAddressPins(struct EEPROM* eeprom,unsigned int addressToSet){
+	for (char pin = 0;pin<eeprom->numAddressPins;pin++){
+		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
+			setPinLevel(gpioLines,eeprom->addressPins[(int)pin],(addressToSet & 1));
+			addressToSet >>= 1;
+		}
+	}
+}
+
+/* Set Data eeprom to value to write */
+void setDataPins(struct EEPROM* eeprom,char dataToSet){
+	for (char pin = 0;pin<eeprom->numDataPins;pin++){
+		setPinLevel(gpioLines,eeprom->dataPins[(int)pin],(dataToSet & 1));
+		dataToSet >>= 1;
+	}
+}
+
+/* More descriptive wrapper around usleep to show the wait time for writes in microseconds */
+void waitWriteCycle(int usec){
+	usleep(usec);
+}
+
+/* Initialize Raspberry Pi to perform action on EEPROM */
+int init(struct EEPROM *eeprom,int eepromModel,struct OPTIONS *sOptions){
+	setupGPIO(chip,chipname,gpioLines,"Pi EEPROM Programmer");
+	
+	eeprom->i2cId = sOptions->i2cId;
+    eeprom->writeCycleWait = sOptions->writeCycleUSec;
+
+	eeprom->model = eepromModel;
+	eeprom->size = EEPROM_MODEL_SIZES[eepromModel];
+	eeprom->numAddressPins = (EEPROM_NUM_ADDRESS_PINS[eepromModel]);
+	eeprom->numDataPins = (EEPROM_NUM_DATA_PINS[eepromModel]);
+	if(eeprom->writeCycleWait == -1){
+		eeprom->writeCycleWait = EEPROM_WRITE_CYCLE_USEC[eepromModel];
+	}
+	
+	if (eepromModel >= AT24C01 && eepromModel <= AT24C256){
+		eeprom->fd = setupI2C();
+								// 8; // 2 // 3 // I2C Pins 
+								// 9; // 3 // 5 // I2C Pins
+
+		eeprom->addressPins[0] =  13; // 23 // 33
+		eeprom->addressPins[1] =  19; // 24 // 35
+		eeprom->addressPins[2] =  26; // 25 // 37
+
+		eeprom->vccPin = 		  12; // 26 // 32
+		eeprom->writeProtectPin = 16; // 27 // 36
 
 
-/* Open and write a text file to Memory */
-int writeTextFileToEEPROM(struct EEPROM *eeprom, FILE *memoryFile, struct OPTIONS *sOptions){
+		for(int i=0;i<3;i++){
+			setPinMode(gpioLines,eeprom->addressPins[i], OUTPUT);
+			setPinLevel(gpioLines,eeprom->addressPins[i], LOW);
+		}
+
+		if (eeprom->i2cId != 0x50){
+			setAddressPins(eeprom,eeprom->i2cId - 0x50);
+		}
+
+		setPinMode(gpioLines,eeprom->writeProtectPin, OUTPUT);
+		setPinMode(gpioLines,eeprom->vccPin, OUTPUT);
+		setPinLevel(gpioLines,eeprom->writeProtectPin, HIGH);
+		setPinLevel(gpioLines,eeprom->vccPin, HIGH);
+
+	} else {
+							/*   GPIO // WiPi // Pin   */ 
+		eeprom->addressPins[14] =  4; //  7 //  7   !Not Used on AT28C16
+		eeprom->addressPins[12] = 17; //  0 // 11 	!Not Used on AT28C16
+		
+		eeprom->addressPins[7] =  27; //  2 // 13
+		eeprom->addressPins[6] =  22; //  3 // 15
+		eeprom->addressPins[5] =  10; // 12 // 19
+		eeprom->addressPins[4] =   9; // 13 // 21
+		eeprom->addressPins[3] =  11; // 14 // 23
+		eeprom->addressPins[2] =   0; // 30 // 27
+		eeprom->addressPins[1] =   5; // 21 // 29
+		eeprom->addressPins[0] =   6; // 22 // 31
+
+		eeprom->dataPins[0] =     13; // 23 // 33
+		eeprom->dataPins[1] =     19; // 24 // 35
+		eeprom->dataPins[2] =     26; // 25 // 37
+		
+		if (eepromModel == AT28C64 || eepromModel == AT28C256){
+			eeprom->writeEnablePin =  14; // 15 // 8
+			
+			eeprom->addressPins[13] = 15; // 16 // 10
+			eeprom->addressPins[11] = 24; // 5 // 18
+		} else if (eepromModel <= AT28C16){
+			eeprom->writeEnablePin =  24; // 5 // 18
+			eeprom->vccPin = 		  15; // 16 // 10
+		}
+	
+		eeprom->addressPins[8] =    18; //  1 // 12
+		eeprom->addressPins[9] =    23; //  4 // 16
+
+		eeprom->outputEnablePin =   25; //  6 // 22
+		eeprom->addressPins[10] =    8; // 10 // 23
+		eeprom->chipEnablePin =	     7; // 11 // 26
+		eeprom->dataPins[7] =        1; // 31 // 28
+		eeprom->dataPins[6] =       12; // 26 // 32
+		eeprom->dataPins[5] =       16; // 27 // 36
+		eeprom->dataPins[4] =        3;//20; // 28 // 38
+		eeprom->dataPins[3] =        2;//21; // 29 // 40
+		
+		for(int i=0;i<eeprom->numAddressPins;i++){
+			if ((eeprom->model == AT28C64) && ((i == 13) || (i == 14))){
+				// handle NC pins
+				setPinMode(gpioLines,eeprom->addressPins[i], INPUT);	
+			} else {
+				// ulog(DEBUG,"Setting Mode for Pin: %i",i);
+				setPinMode(gpioLines,eeprom->addressPins[i], OUTPUT);	
+			}
+		}
+	
+		for(int i=0;i<eeprom->numDataPins;i++){
+			setPinMode(gpioLines,eeprom->dataPins[i], INPUT);
+		}
+
+		setPinMode(gpioLines,eeprom->chipEnablePin, OUTPUT);
+		setPinMode(gpioLines,eeprom->outputEnablePin, OUTPUT);
+		setPinMode(gpioLines,eeprom->writeEnablePin, OUTPUT);
+		setPinMode(gpioLines,eeprom->vccPin, OUTPUT);
+		setPinLevel(gpioLines,eeprom->chipEnablePin, LOW);
+		setPinLevel(gpioLines,eeprom->outputEnablePin, HIGH);
+		setPinLevel(gpioLines,eeprom->writeEnablePin, HIGH);
+		setPinLevel(gpioLines,eeprom->vccPin, HIGH);
+		
+	}
+	usleep(5000); //startup delay
+	ulog(DEBUG,"Finished GPIO Initialization");
+	return 0;
+}
+
+/* Compare a file to EEPRom */
+int compareFileToEEPROM(struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions){
+	if (sOptions->fileType == TEXT_FILE){
+		return compareTextFileToEEPROM(eeprom,romFile,sOptions);
+	} else {
+		return compareBinaryFileToEEPROM(eeprom,romFile,sOptions);
+	}
+}
+
+/* Open and write a file to EEPROM */
+int writeFileToEEPROM(struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions){
+	if (sOptions->fileType == TEXT_FILE){
+		return writeTextFileToEEPROM(eeprom,romFile,sOptions);
+	} else {
+		return writeBinaryFileToEEPROM(eeprom,romFile,sOptions);
+	}
+}
+
+/* Open and write a text file to EEPROM */
+int writeTextFileToEEPROM(struct EEPROM *eeprom, FILE *romFile, struct OPTIONS *sOptions){
 	int counter = 0;
 	
 	char textFileAddress[eeprom->numAddressPins+1];
@@ -21,7 +222,7 @@ int writeTextFileToEEPROM(struct EEPROM *eeprom, FILE *memoryFile, struct OPTION
 	textFileAddress[eeprom->numAddressPins] = 0;
 	textFiledata[eeprom->numDataPins] = 0;
 
-	while( ((c = fgetc(memoryFile)) != EOF ) && counter < sOptions->limit){
+	while( ((c = fgetc(romFile)) != EOF ) && counter < sOptions->limit){
 		if (c != '\n'){
 			if ((addressLength < eeprom->numAddressPins) && (haveNotReachedSeparator) ){
 				if(c == '1' || c == '0'){
@@ -47,7 +248,7 @@ int writeTextFileToEEPROM(struct EEPROM *eeprom, FILE *memoryFile, struct OPTION
 			// ulog(DEBUG,"Writing to File %i  %i",binStr2num(textFileAddress),binStr2num(textFiledata));
 			if (binStr2num(textFileAddress) >= sOptions->startValue){
 				err = writeByteToAddress( \
-							eeprom,binStr2num(textFileAddress),binStr2num(textFiledata),sOptions,&byteWriteCounter);
+							eeprom,binStr2num(textFileAddress),binStr2num(textFiledata),sOptions,&byteWriteCounter) || err;
 			}
 			addressLength = 0;
 			dataLength = 0;
@@ -60,7 +261,7 @@ int writeTextFileToEEPROM(struct EEPROM *eeprom, FILE *memoryFile, struct OPTION
 }
 
 /* Compare a text file to EEPRom */
-int compareTextFileToEEPROM(struct EEPROM *eeprom,FILE *memoryFile, struct OPTIONS *sOptions){
+int compareTextFileToEEPROM(struct EEPROM *eeprom,FILE *romFile, struct OPTIONS *sOptions){
 	int addressToCompare = 0;
 	int dataToCompare = 0;
 	int err = 0;
@@ -78,7 +279,7 @@ int compareTextFileToEEPROM(struct EEPROM *eeprom,FILE *memoryFile, struct OPTIO
 	textFileAddress[eeprom->numAddressPins] = 0;
 	textFiledata[eeprom->numDataPins] = 0;
 
-	while( ((c = fgetc(memoryFile)) != EOF ) && (counter < sOptions->limit)){
+	while( ((c = fgetc(romFile)) != EOF ) && (counter < sOptions->limit)){
 		if (c != '\n'){
 			if ((addressLength < eeprom->numAddressPins) && (haveNotReachedSeparator) ){
 				if(c == '1' || c == '0'){
@@ -125,39 +326,44 @@ int compareTextFileToEEPROM(struct EEPROM *eeprom,FILE *memoryFile, struct OPTIO
 	return err;
 }
 
+void seekFileToStartValue(FILE *romFile, struct OPTIONS *sOptions){
+	fseek(romFile, 0L, SEEK_END);
+	unsigned long sz = ftell(romFile);
+	rewind(romFile);
+	if(sOptions->startValue < sOptions->limit && sz > sOptions->startValue){
+		fseek(romFile,sOptions->startValue,SEEK_SET);
+	}
+}
+
 /* Open and write a binary file to the EEPROM */
-int writeBinaryFileToEEPROM(struct EEPROM* eeprom,FILE *memoryFile, struct OPTIONS *sOptions){
-	int c;
+int writeBinaryFileToEEPROM(struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions){
+	char dataToWrite;
 	int addressToWrite = 0;
-	int err=0;
+	int err = 0;
 	int byteWriteCounter = 0;
 
-	while (addressToWrite < sOptions->startValue && (fgetc(memoryFile) != EOF)){
-		addressToWrite++;
-	}
-
-	while(((c = fgetc(memoryFile)) != EOF) && addressToWrite < sOptions->limit) {
-		err = writeByteToAddress(eeprom,addressToWrite++,c,sOptions,&byteWriteCounter);
+	seekFileToStartValue(romFile,sOptions);
+	
+	while(((dataToWrite = fgetc(romFile)) != EOF) && addressToWrite < sOptions->limit) {
+		err = writeByteToAddress(eeprom,addressToWrite++,dataToWrite,sOptions,&byteWriteCounter) || err;
 	}
 	ulog(INFO,"Wrote %i bytes",byteWriteCounter);
 	return err;
 }
 
 /* Compare a binary file to EEPRom */
-int compareBinaryFileToEEPROM(struct EEPROM* eeprom,FILE *memoryFile, struct OPTIONS *sOptions){
-	char c;
+int compareBinaryFileToEEPROM(struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions){
+	char dataToCompare;
 	int err = 0;
 	int addressToCompare = 0;
 	int bytesNotMatched = 0;
 
-	while (addressToCompare < sOptions->startValue && (fgetc(memoryFile) != EOF)){
-		addressToCompare++;
-	}
+	seekFileToStartValue(romFile,sOptions);
 
-	while(((c = fgetc(memoryFile)) != EOF) && addressToCompare < sOptions->limit) {
-		if (readByteFromAddress(eeprom,addressToCompare) != (char)c){
+	while(((dataToCompare = fgetc(romFile)) != EOF) && addressToCompare < sOptions->limit) {
+		if (readByteFromAddress(eeprom,addressToCompare) != (char)dataToCompare){
 			ulog(DEBUG,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
-				addressToCompare,readByteFromAddress(eeprom,addressToCompare),c);
+				addressToCompare,readByteFromAddress(eeprom,addressToCompare),dataToCompare);
 			bytesNotMatched++;
 			err = 1;
 		}
@@ -175,21 +381,21 @@ int compareBinaryFileToEEPROM(struct EEPROM* eeprom,FILE *memoryFile, struct OPT
 char readByteFromAddress(struct EEPROM* eeprom,unsigned int addressToRead){
 	char byteVal = 0;
 	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
-		byteVal = wiringPiI2CReadReg8(eeprom->fd, addressToRead);
+		setPinLevel(gpioLines,eeprom->writeProtectPin,HIGH);
+		byteVal = getByteI2C(eeprom->fd,addressToRead);
 	} else {
 		// set the address
 		setAddressPins(eeprom,addressToRead);
 		// enable output from the chip
-		digitalWrite(eeprom->outputEnablePin,LOW);
+		setPinLevel(gpioLines,eeprom->outputEnablePin,LOW);
 		// set the rpi to input on it's gpio data lines
 		for(int i=0;i<eeprom->numDataPins;i++){
-			pinMode(eeprom->dataPins[i],INPUT);
-			pullUpDnControl(eeprom->dataPins[i],PUD_DOWN);
+			setPinMode(gpioLines,eeprom->dataPins[i],INPUT);
 		}
 		// read the eeprom and store to string
 		for(int i=eeprom->numDataPins-1;i>=0;i--){
 			byteVal <<= 1;
-			byteVal |= (digitalRead(eeprom->dataPins[i]) & 1);		
+			byteVal |= (getPinLevel(gpioLines,eeprom->dataPins[i]) & 1);		
 		}
 	}
 	// return the number
@@ -201,9 +407,11 @@ int writeByteToAddress(struct EEPROM* eeprom,unsigned int addressToWrite, \
 						char dataToWrite, struct OPTIONS *sOptions, int* byteWriteCounter){
 	int err = 0;
 	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
-		if ( sOptions->force || dataToWrite != wiringPiI2CReadReg8(eeprom->fd, addressToWrite )){
+		setPinLevel(gpioLines,eeprom->writeProtectPin,HIGH);
+		if ( sOptions->force || dataToWrite != getByteI2C(eeprom->fd,addressToWrite )){
+			setPinLevel(gpioLines,eeprom->writeProtectPin,LOW);
 			waitWriteCycle(eeprom->writeCycleWait);
-			if (-1 != wiringPiI2CWriteReg8(eeprom->fd, addressToWrite, dataToWrite )){
+			if (-1 != setByteI2C(eeprom->fd,addressToWrite, dataToWrite )){
 				ulog(INFO,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
 			} else {
 				ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
@@ -221,19 +429,18 @@ int writeByteToAddress(struct EEPROM* eeprom,unsigned int addressToWrite, \
 			// set the address
 			setAddressPins(eeprom,addressToWrite);
 			// disable output from the chip
-			digitalWrite(eeprom->outputEnablePin,HIGH);
+			setPinLevel(gpioLines,eeprom->outputEnablePin,HIGH);
 			// set the rpi to output on it's gpio data lines
 			for(int i=0;i<eeprom->numDataPins;i++){
-					pinMode(eeprom->dataPins[i], OUTPUT);
+					setPinMode(gpioLines,eeprom->dataPins[i], OUTPUT);
 			}
 			// Set the data eeprom to the data to be written
 			setDataPins(eeprom,dataToWrite);
-
+			
 			// perform the write
-			digitalWrite(eeprom->writeEnablePin,LOW);
+			setPinLevel(gpioLines,eeprom->writeEnablePin,LOW);
 			usleep(1);
-			digitalWrite(eeprom->writeEnablePin,HIGH);
-			// usleep(10000); //Non CMOS version <-
+			setPinLevel(gpioLines,eeprom->writeEnablePin,HIGH);
 			waitWriteCycle(eeprom->writeCycleWait);
 			if (sOptions->validateWrite == 1){
 				if ( dataToWrite != readByteFromAddress(eeprom,addressToWrite)){
@@ -254,137 +461,8 @@ int writeByteToAddress(struct EEPROM* eeprom,unsigned int addressToWrite, \
 	return err;
 }
 
-/* Set Address eeprom to value to read from or write to */
-void setAddressPins(struct EEPROM* eeprom,unsigned int addressToSet){
-	for (char pin = 0;pin<eeprom->numAddressPins;pin++){
-		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
-			digitalWrite(eeprom->addressPins[pin],(addressToSet & 1));
-			addressToSet >>= 1;
-		}
-	}
-}
-
-/* Set Data eeprom to value to write */
-void setDataPins(struct EEPROM* eeprom,char dataToSet){
-	for (char pin = 0;pin<eeprom->numDataPins;pin++){
-		digitalWrite(eeprom->dataPins[pin],(dataToSet & 1));
-		dataToSet >>= 1;
-	}
-}
-
-/* Initialize Raspberry Pi to perform action on EEPROM */
-int init(struct EEPROM *eeprom,int eepromModel){
-	eeprom->model = eepromModel;
-	eeprom->size = EEPROM_MODEL_SIZES[eepromModel];
-	eeprom->numAddressPins = (EEPROM_NUM_ADDRESS_PINS[eepromModel]);
-	eeprom->numDataPins = (EEPROM_NUM_DATA_PINS[eepromModel]);
-	if(eeprom->writeCycleWait == -1){
-		eeprom->writeCycleWait = EEPROM_WRITE_CYCLE_USEC[eepromModel];
-	}
-	
-	if (eepromModel >= AT24C01 && eepromModel <= AT24C256){
-		// 8; // 2 // 3 // I2C Pins 
-		// 9; // 3 // 5 // I2C Pins
-
-		eeprom->addressPins[0] = 23; // 13 // 33
-		eeprom->addressPins[1] = 24; // 19 // 35
-		eeprom->addressPins[2] = 25; // 26 // 37
-
-		eeprom->vccPin = 26; // 12 // 32
-		eeprom->writeProtectPin = 27; // 16 // 36
-
-
-		for(int i=0;i<3;i++){
-			pinMode(eeprom->addressPins[i], OUTPUT);
-			digitalWrite(eeprom->addressPins[i], LOW);
-		}
-
-		if (eeprom->i2cId != 0x50){
-			setAddressPins(eeprom,eeprom->i2cId - 0x50);
-		}
-
-		pinMode(eeprom->writeProtectPin, OUTPUT);
-		pinMode(eeprom->vccPin, OUTPUT);
-		digitalWrite(eeprom->writeProtectPin, LOW);
-		digitalWrite(eeprom->vccPin, HIGH);
-
-	} else {
-				/*   WiPi // GPIO // Pin   */ 
-		eeprom->addressPins[14] = 7; // 4 // 7   !Not Used on AT28C16
-		eeprom->addressPins[12] = 0; // 17 // 11 !Not Used on AT28C16
-		
-		eeprom->addressPins[7] = 2; // 27 // 13
-		eeprom->addressPins[6] = 3; // 22 // 15
-		eeprom->addressPins[5] = 12; // 10 // 19
-		eeprom->addressPins[4] = 13; // 9 // 21
-		eeprom->addressPins[3] = 14; // 11 // 23
-		eeprom->addressPins[2] = 30; // 0 // 27
-		eeprom->addressPins[1] = 21; // 5 // 29
-		eeprom->addressPins[0] = 22; // 6 // 31
-
-		eeprom->dataPins[0] = 23; // 13 // 33
-		eeprom->dataPins[1] = 24; // 19 // 35
-		eeprom->dataPins[2] = 25; // 26 // 37
-		
-		if (eepromModel == AT28C64 || eepromModel == AT28C256){
-			eeprom->writeEnablePin =  15; // 14 // 8
-			
-			eeprom->addressPins[13] = 16; // 15 // 10
-			eeprom->addressPins[11] = 5; // 24 // 18
-		} else if (eepromModel <= AT28C16){
-			eeprom->writeEnablePin =  5; // 24 // 18
-			eeprom->vccPin = 16; // 15 // 10
-
-		}
-
-		eeprom->addressPins[8] = 1; // 18 // 12
-		eeprom->addressPins[9] = 4; // 23 // 16
-
-		eeprom->outputEnablePin =	   6; // 25 // 22
-		eeprom->addressPins[10] = 10; // 8 // 24
-		eeprom->chipEnablePin =	  11; // 7 // 26
-		eeprom->dataPins[7] = 31; // 1 // 28
-		eeprom->dataPins[6] = 26; // 12 // 32
-		eeprom->dataPins[5] = 27; // 16 // 36
-		eeprom->dataPins[4] = 28; // 20 // 38
-		eeprom->dataPins[3] = 29; // 21 // 40
-		
-		for(int i=0;i<eeprom->numAddressPins;i++){
-			if ((eeprom->model == AT28C64) && ((i == 13) || (i == 14))){
-				// handle NC pins
-				pinMode(eeprom->addressPins[i], INPUT);	
-				pullUpDnControl(eeprom->dataPins[i],PUD_OFF);
-			} else {
-				pinMode(eeprom->addressPins[i], OUTPUT);
-				digitalWrite(eeprom->addressPins[i], LOW);
-			}
-		}
-
-		for(int i=0;i<eeprom->numDataPins;i++){
-			pinMode(eeprom->dataPins[i], OUTPUT);
-			digitalWrite(eeprom->dataPins[i], LOW);
-		}
-
-		pinMode(eeprom->chipEnablePin, OUTPUT);
-		pinMode(eeprom->outputEnablePin, OUTPUT);
-		pinMode(eeprom->writeEnablePin, OUTPUT);
-		pinMode(eeprom->vccPin, OUTPUT);
-		digitalWrite(eeprom->chipEnablePin, LOW);
-		digitalWrite(eeprom->outputEnablePin, HIGH);
-		digitalWrite(eeprom->writeEnablePin, HIGH);
-		digitalWrite(eeprom->vccPin, HIGH);
-	}
-	usleep(5000); //startup delay
-	return 0;
-}
-
-/* More descriptive wrapper around usleep to show the wait time for writes in microseconds */
-void waitWriteCycle(int usec){
-	usleep(usec);
-}
-
 /* Prints the EEPRom's Contents to the specified limit */
-void printROMContents(struct EEPROM* eeprom, struct OPTIONS *sOptions){
+void printEEPROMContents(struct EEPROM* eeprom, struct OPTIONS *sOptions){
 	if (sOptions->limit == -1 || sOptions->limit > EEPROM_MODEL_SIZES[eeprom->model]){
 		sOptions->limit = EEPROM_MODEL_SIZES[eeprom->model];
 	}
@@ -420,29 +498,26 @@ void printROMContents(struct EEPROM* eeprom, struct OPTIONS *sOptions){
 			}
 		}
 		break;
+
 	case 3: // pretty
+	default:
 		if ((sOptions->startValue % 16) != 0){
 			sOptions->startValue = sOptions->startValue - ((sOptions->startValue % 16));
 		}
+
 		printf("       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
-		printf("       ===============================================================\n");
+		printf("Device ===============================================================\n");
 		for (int i=sOptions->startValue;i<sOptions->limit;i++){
-			printf( \
-			"%04x | %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n", \
-			i, \
-			readByteFromAddress(eeprom,i), readByteFromAddress(eeprom,i+1), readByteFromAddress(eeprom,i+2), \
-			readByteFromAddress(eeprom,i+3), readByteFromAddress(eeprom,i+4), readByteFromAddress(eeprom,i+5), \
-			readByteFromAddress(eeprom,i+6), readByteFromAddress(eeprom,i+7), readByteFromAddress(eeprom,i+8), \
-			readByteFromAddress(eeprom,i+9), readByteFromAddress(eeprom,i+10), readByteFromAddress(eeprom,i+11), \
-			readByteFromAddress(eeprom,i+12), readByteFromAddress(eeprom,i+13), readByteFromAddress(eeprom,i+14), \
-			readByteFromAddress(eeprom,i+15));
-			i = i+15;
+			printf("%04x | ",i);
+			int j=0;
+			while(j<16 && i<sOptions->limit){
+				printf("%02x  ",readByteFromAddress(eeprom,i++));
+				j++;
+			}
+			i--;
+			printf("\n");
 		}
-		break;
-	default:
-		for (int i=sOptions->startValue;i<sOptions->limit;i++){
-			printf("Address: %i     Data: %i \n",i,readByteFromAddress(eeprom,i));
-		}
+
 		break;
 	}
 }

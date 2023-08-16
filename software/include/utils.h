@@ -4,10 +4,12 @@
      * @brief Defines the Logging Levels used by uLog.
      */
     enum LOGLEVEL {OFF,FATAL,ERROR,WARNING,INFO,DEBUG};
-    // const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG",};
 
     enum FILE_TYPE {TEXT_FILE,BINARY_FILE};
-	enum APP_FUNCTIONS {WRITE_FILE_TO_ROM,COMPARE_ROM_TO_FILE,DUMP_ROM,WRITE_SINGLE_BYTE_TO_ROM};
+	enum APP_FUNCTIONS {NOTHING,WRITE_FILE_TO_ROM,COMPARE_FILE_TO_ROM,DUMP_ROM,WRITE_SINGLE_BYTE_TO_ROM,\
+                            READ_SINGLE_BYTE_FROM_ROM};
+
+    enum BOARD_TYPE{RPI4};
 
 
     /**
@@ -27,9 +29,13 @@
         int eepromModel;
         int writeCycleUSec;
         char i2cId;
+        int boardType;
 
         int addressParam;
         int dataParam;
+
+        char* consumer;
+        char* chipname;
         };  
 
     /**
@@ -42,6 +48,16 @@
      * @return 
      */
     int parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]);
+
+    void printHelp(void);
+    
+
+    char *num2binStr(char*,int,int);
+    int binStr2num(const char*);
+    int str2num(char*);
+
+    long expo(int, int);
+
 
     /**
      * @brief Prints a message to stdout with the loggingLevel prepended.

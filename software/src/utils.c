@@ -108,36 +108,42 @@ long expo(int base, int power){
 void printHelp(){
 	printf("Usage: piepro [options] [file]\n");
 	printf("Options:\n");
-	printf(" -b,   --binary			Interpret file as a binary. Default: text\n");
-	printf("					Text File format:\n");
-	printf("					[00000000]00000000 00000000\n");
-	printf(" -c,   	--compare		Compare file and EEPROM and print differences.\n");
-	printf(" -d N, 	--dump N		Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
-	printf(" -f,   	--force			Force writing of every byte instead of checking for existing value first.\n");
-	printf(" -id,   --i2c-device-id	The Address id of the I2C device.\n");
-	printf(" -h,   	--help			Print this message and exit.\n");
-	printf(" -l N, 	--limit N		Specify the maximum address to operate.\n");
-	printf("       	--no-validate-write	Do not perform a read directly after writing to verify the data was written.\n");
-	printf(" -m MODEL, --model MODEL	Specify EERPOM device model. Default: AT28C16.\n");
-	printf(" -s N, 	--start N		Specify the minimum address to operate.\n");
-	printf(" -v N, 	--v[vvvv]		Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
-	printf(" -w ADDRESS DATA, \n");
-	printf("\t--write ADDRESS DATA	Write specified DATA to ADDRESS.\n");
-	printf(" -wd N, --write-delay N		Number of microseconds to delay between writes.\n");
+	printf(" -b,        --board         Specify the SoC board used. Default: Raspberry Pi 4/400\n");
+	printf(" -c,        --compare       Compare file and EEPROM and print differences.\n");
+	printf(" -d N, 	    --dump N        Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
+	printf(" -f,   	    --force         Force writing of every byte instead of checking for existing value first.\n");
+	printf(" -i FILE,   --image FILE    The Filename to use.\n");
+	printf(" -id,       --i2c-device-id The Address id of the I2C device.\n");
+	printf(" -h,   	    --help          Print this message and exit.\n");
+	printf(" -l N, 	    --limit N       Specify the maximum address to operate.\n");
+	printf("       	    --no-validate-write Do not perform a read directly after writing to verify the data was written.\n");
+	printf(" -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.\n");
+	printf(" -r N, 	    --read ADDRESS  Read the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
+	printf(" -rb N,     --read-byte ADDRESS  Read From specified ADDRESS.\n");
+	printf(" -s N, 	    --start N       Specify the minimum address to operate.\n");
+	printf(" -t,        --text          Interpret file as a binary. Default: binary\n");
+	printf("                            Text File format:\n");
+	printf("                            [00000000]00000000 00000000\n");
+	printf(" -v N, 	    --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
+	printf(" -w,   	    --write         Write EEPROM with specified file.\n");
+	printf(" -wb ADDRESS DATA, --write-byte ADDRESS DATA	Write specified DATA to ADDRESS.\n");
+	printf(" -wd N,     --write-delay N Number of microseconds to delay between writes.\n");
 	printf("\n");
 }
 
 void setDefaultOptions(struct OPTIONS* sOptions){
     sOptions->limit = -1;
     sOptions->startValue = 0;
-    sOptions->dumpFormat = 0;
+    sOptions->dumpFormat = 3;
     sOptions->validateWrite = 1;
     sOptions->force = 0;
-    sOptions->action = WRITE_FILE_TO_ROM;
-    sOptions->fileType = TEXT_FILE;
+    sOptions->action = NOTHING;
+    sOptions->fileType = BINARY_FILE;
     sOptions->eepromModel = AT28C16;
     sOptions->writeCycleUSec = -1;
     sOptions->i2cId = 0x50;
+	sOptions->boardType = RPI4;
+	sOptions->filename = NULL;
 
     sOptions->addressParam = 0;
     sOptions->dataParam = 0;
@@ -151,6 +157,7 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 			// -h --help
 			if (!(strcmp(argv[i],"-h")) || (!strcmp(argv[i],"--help"))){
 				printHelp();
+				sOptions->action = NOTHING;
 				return 0;
 			}
 
@@ -170,7 +177,7 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 		}
 
 		for(int i=argc-1;i>0;i--){
-			// -i --initial
+			// -s --start
 			if (!strcmp(argv[i],"-s") || !strcmp(argv[i],"--start")){
 				ulog(INFO,"Setting starting value to %i",str2num(argv[i+1]));
 				sOptions->startValue = str2num(argv[i+1]);
@@ -178,6 +185,12 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 					ulog(FATAL,"Unsupported starting value");
 					return 1;
 				}
+			}
+
+			// -i --image
+			if (!strcmp(argv[i],"-i") || !strcmp(argv[i],"--image")){
+				ulog(INFO,"Setting filename to %s",argv[i+1]);
+				sOptions->filename = argv[i+1];
 			}
 
 			// -l --limit
@@ -190,10 +203,17 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				}
 			}
 
-			// -b --binary 
-			if (!strcmp(argv[i],"-b") || !strcmp(argv[i],"--binary")){
-				ulog(INFO,"Setting filetype to binary");
-				sOptions->fileType = BINARY_FILE;
+			// -b --board 
+			if (!strcmp(argv[i],"-b") || !strcmp(argv[i],"--board")){
+				ulog(INFO,"Setting SoC Board type to Raspberry Pi 4/400");
+				ulog(INFO,"Right now only 1 board is supported");
+				// sOptions->fileType = BINARY_FILE;
+			}
+
+			// -t --text 
+			if (!strcmp(argv[i],"-t") || !strcmp(argv[i],"--text")){
+				ulog(INFO,"Setting filetype to text");
+				sOptions->fileType = TEXT_FILE;
 			}
 
 			// -wd --write-delay
@@ -216,9 +236,9 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				}
 			}
 
-			// -d --dump
-			if (!strcmp(argv[i],"-d") || !strcmp(argv[i],"--dump")){
-				if (sOptions->action == COMPARE_ROM_TO_FILE || sOptions->action == WRITE_SINGLE_BYTE_TO_ROM){
+			// -d --dump || -r --read
+			if (!strcmp(argv[i],"-d") || !strcmp(argv[i],"--dump") || !strcmp(argv[i],"-r") || !strcmp(argv[i],"--read")){
+				if (sOptions->action != DUMP_ROM && sOptions->action != NOTHING){
 					ulog(WARNING, \
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
@@ -228,9 +248,9 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				}
 			}
 
-			// -w --write
-			if (!strcmp(argv[i],"-w") || !strcmp(argv[i],"--write")){
-				if (sOptions->action == COMPARE_ROM_TO_FILE || sOptions->action == DUMP_ROM){
+			// -wb --write-byte
+			if (!strcmp(argv[i],"-wb") || !strcmp(argv[i],"--write-byte")){
+				if (sOptions->action != WRITE_SINGLE_BYTE_TO_ROM && sOptions->action != NOTHING){
 					ulog(WARNING, \
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
@@ -250,14 +270,42 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				}
 			}
 
+			// -rb --read-byte
+			if (!strcmp(argv[i],"-rb") || !strcmp(argv[i],"--read-byte")){
+				if (sOptions->action != READ_SINGLE_BYTE_FROM_ROM && sOptions->action != NOTHING){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else {
+					
+					sOptions->addressParam = str2num(argv[i+1]);
+					if ( sOptions->addressParam == -1) {
+						ulog(ERROR,"Unsupported number format. Exiting.");
+						return 1;
+					}
+					ulog(INFO,"Reading single byte from Address %s",argv[i+1]);
+					sOptions->action = READ_SINGLE_BYTE_FROM_ROM;
+				}
+			}
+
 			// -c --compare
 			if (!strcmp(argv[i],"-c") || !strcmp(argv[i],"--compare")){
-				if (sOptions->action == DUMP_ROM || sOptions->action == WRITE_SINGLE_BYTE_TO_ROM){
+				if (sOptions->action != COMPARE_FILE_TO_ROM && sOptions->action != NOTHING){
 					ulog(WARNING, \
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
 					ulog(INFO,"Comparing EEPROM to File");
-					sOptions->action = COMPARE_ROM_TO_FILE;
+					sOptions->action = COMPARE_FILE_TO_ROM;
+				}
+			}
+
+			// -w --write
+			if (!strcmp(argv[i],"-w") || !strcmp(argv[i],"--write")){
+				if (sOptions->action != WRITE_FILE_TO_ROM && sOptions->action != NOTHING){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else {
+					ulog(INFO,"Writing File to EEPROM");
+					sOptions->action = WRITE_FILE_TO_ROM;
 				}
 			}
 
@@ -291,7 +339,10 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 			}
 		}
 	
-
+	if(sOptions->action == NOTHING){
+		ulog(WARNING,"No action specified. Doing Nothing. Run piepro -h for a list of options");
+	}
+	return 0;
 }
 
 
