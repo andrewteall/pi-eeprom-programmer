@@ -12,7 +12,6 @@ int main(int argc, char *argv[]){
 	// TODO: Update docs for new build and installation min 4.8 kernel
 	// TODO: Add make install
 	// TODO: Add docs for hardware
-	// TODO: Multi .gitignore
 	
     uint8_t error = 0;
 	
