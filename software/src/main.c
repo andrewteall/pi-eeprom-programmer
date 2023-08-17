@@ -10,7 +10,6 @@ int main(int argc, char *argv[]){
 	// TODO: Setup data Polling
 	// TODO: Support Page Writes if supported
 	// TODO: Update docs for new build and installation min 4.8 kernel
-	// TODO: Add make install
 	// TODO: Add docs for hardware
 	
     uint8_t error = 0;
