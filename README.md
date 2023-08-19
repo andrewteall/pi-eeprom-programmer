@@ -128,3 +128,10 @@ Options:
  -wb ADDRESS DATA, --write-byte ADDRESS DATA    Write specified DATA to ADDRESS.
  -wd N,     --write-delay N Number of microseconds to delay between writes.
  ```
+
+ ## __Features, Bugs, and Contributing__
+If there's anything you'd like to add or find a bug please open an [issue](https://github.com/andrewteall/pi-eeprom-programmer/issues). If you'd like to implement those chages yourself please feel free to open a PR or fork the repository and make it your own.
+
+
+## __License__
+This project is licensed under the [MIT License](../LICENSE). You are free to use, modify, and distribute the project according to the terms of the license.
