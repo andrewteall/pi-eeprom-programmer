@@ -9,7 +9,7 @@ This README provides an overview of the features, hardware design, and usage ins
 
 ## Hardware Design
 
-The hardware design files for the Raspberry Pi EEPROM Programmer can be found in the [hardware](https://github.com/andrewteall/pi-eeprom-programmer/tree/master/hardware) directory of this repository. The design includes:
+The hardware design files for the Raspberry Pi EEPROM Programmer can be found in the [hardware](../hardware) directory of this repository. The design includes:
 
 - **Kicad Project File:** The Kicad 6 project file to open the designs.
 - **Schematic:** The schematic diagram detailing the connections between components and the Raspberry Pi.
@@ -24,7 +24,7 @@ If you want to contribute and make any changes to this repo please ensure that y
 
 
 ## __Building the Hardware in Kicad__
-When generating the appropriate gerber and drill files they should go in the `gerbers` folder. Any new version should provide a zipped in same folder containing all the build files and replacing the old version. This should make it easy to upload the design to the pcb manufacturers. The defaults in Kicad should befine to generate gerbers and drill files only the output directory should have to be changed.
+When generating the appropriate gerber and drill files they should go in the [gerbers](./gerbers/) folder. Any new version should provide a zipped in same folder containing all the build files and replacing the old version. This should make it easy to upload the design to the pcb manufacturers. The defaults in Kicad should befine to generate gerbers and drill files only the output directory should have to be changed.
 
 
 ## __Assembling the PCB__

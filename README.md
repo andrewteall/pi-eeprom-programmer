@@ -82,7 +82,7 @@ make install
 That's it. You should be able to start reading and writing EEPROMs.
 
 ### __Installing the IC__
-If you've recrated the circuit exactly from above or are using the pcb the IC should be installed so that the bottom left pin of the IC is aligned to the bottom left of the circuit.
+If you've recreated the circuit exactly from above or are using the pcb the IC should be installed so that the bottom left pin of the IC is aligned to the bottom left of the circuit.
 
 ### __Reading from an EEPROM__
 
