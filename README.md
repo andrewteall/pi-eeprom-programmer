@@ -120,7 +120,7 @@ Options:
  -r N,      --read ADDRESS  Read the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.
  -rb N,     --read-byte ADDRESS  Read From specified ADDRESS.
  -s N,      --start N       Specify the minimum address to operate.
- -t,        --text          Interpret file as a binary. Default: binary
+ -t,        --text          Interpret file as a text. Default: binary
                             Text File format:
                             [00000000]00000000 00000000
  -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.
