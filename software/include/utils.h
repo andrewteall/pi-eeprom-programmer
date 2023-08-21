@@ -1,5 +1,11 @@
 #ifndef UTILS_H
     #define UTILS_H 1
+
+    #define MAJOR "0"
+    #define MINOR "9"
+    #define PATCH "2"
+    #define VERSION  MAJOR "." MINOR "." PATCH
+
     /**
      * @brief Defines the Logging Levels used by uLog.
      */
@@ -7,7 +13,7 @@
 
     enum FILE_TYPE {TEXT_FILE,BINARY_FILE};
 	enum APP_FUNCTIONS {NOTHING,WRITE_FILE_TO_ROM,COMPARE_FILE_TO_ROM,DUMP_ROM,WRITE_SINGLE_BYTE_TO_ROM,\
-                            READ_SINGLE_BYTE_FROM_ROM};
+                            READ_SINGLE_BYTE_FROM_ROM,PRINT_VERSION};
 
     enum BOARD_TYPE{RPI4};
 
@@ -50,6 +56,7 @@
     int parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]);
 
     void printHelp(void);
+    void printVersion();
     
 
     char *num2binStr(char*,int,int);

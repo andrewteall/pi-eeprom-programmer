@@ -124,6 +124,8 @@ Options:
                             Text File format:
                             [00000000]00000000 00000000
  -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.
+            --version       Print the piepro version and exit.
+ 
  -w,        --write         Write EEPROM with specified file.
  -wb ADDRESS DATA, --write-byte ADDRESS DATA    Write specified DATA to ADDRESS.
  -wd N,     --write-delay N Number of microseconds to delay between writes.

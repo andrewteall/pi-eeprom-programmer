@@ -106,6 +106,7 @@ long expo(int base, int power){
 
 /* Prints help message */
 void printHelp(){
+	printf("piepro v%s\n",VERSION);
 	printf("Usage: piepro [options] [file]\n");
 	printf("Options:\n");
 	printf(" -b,        --board         Specify the SoC board used. Default: Raspberry Pi 4/400\n");
@@ -125,10 +126,15 @@ void printHelp(){
 	printf("                            Text File format:\n");
 	printf("                            [00000000]00000000 00000000\n");
 	printf(" -v N, 	    --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
+	printf("            --version       Print the piepro version and exit.\n");
 	printf(" -w,   	    --write         Write EEPROM with specified file.\n");
 	printf(" -wb ADDRESS DATA, --write-byte ADDRESS DATA	Write specified DATA to ADDRESS.\n");
 	printf(" -wd N,     --write-delay N Number of microseconds to delay between writes.\n");
 	printf("\n");
+}
+
+void printVersion(){
+	printf("piepro v%s\n",VERSION);
 }
 
 void setDefaultOptions(struct OPTIONS* sOptions){
@@ -306,6 +312,16 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				} else {
 					ulog(INFO,"Writing File to EEPROM");
 					sOptions->action = WRITE_FILE_TO_ROM;
+				}
+			}
+
+			// --version
+			if (!strcmp(argv[i],"--version")){
+				if (sOptions->action != PRINT_VERSION && sOptions->action != NOTHING){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else {
+					sOptions->action = PRINT_VERSION;
 				}
 			}
 

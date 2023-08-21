@@ -33,7 +33,11 @@ int main(int argc, char *argv[]){
         /*********************************************************************/
         /************************* Program  Start ****************************/
         switch(sOptions.action){
-            case WRITE_FILE_TO_ROM: 
+            case PRINT_VERSION:
+                printVersion();
+                return 0;
+                break;
+            case WRITE_FILE_TO_ROM:
             case COMPARE_FILE_TO_ROM:
                 // open file to read
                 romFile = fopen(sOptions.filename, "r");
