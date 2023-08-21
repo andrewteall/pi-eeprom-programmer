@@ -7,24 +7,34 @@ The Raspberry Pi EEPROM Programmer is a hardware project that facilitates the pr
 
 This README provides an overview of the features, hardware design, and usage instructions for the Raspberry Pi EEPROM Programmer.
 
-## Hardware Design
+## __Folder Structure__
 
-The hardware design files for the Raspberry Pi EEPROM Programmer can be found in the [hardware](../hardware) directory of this repository. The design includes:
+### Hardware Design
+The hardware design files for the Raspberry Pi EEPROM Programmer can be found in the [hardware](../hardware/design/) directory of this repository. The design includes:
 
 - **Kicad Project File:** The Kicad 6 project file to open the designs.
 - **Schematic:** The schematic diagram detailing the connections between components and the Raspberry Pi.
 - **PCB Layout:** The PCB layout design files used for creating the physical printed circuit board.
+
+The hardware design is created using industry-standard design software, and you are encouraged to review, modify, or contribute to the design according to your needs.
+
+### Manufacturing
+The manufacturing files for the Raspberry Pi EEPROM Programmer can be found in the [manufacturing](../hardware/manufacturing/) directory of this repository.
+
 - **Bill of Materials:** A list of all components required for building the programmer.
 - **Gerbers:** Ready to build design files for the programmer.
 
-The hardware design is created using industry-standard design software, and you are encouraged to review, modify, or contribute to the design according to your needs.
+### Repository Related Files
+
+- **.README.md:** Resource on how to build, use, and design this hardware.
+- **.gitignore:** Hardware specific gitignore for this repository.
 
 ## __Design Updates to the Hardware/Contributing__
 Starting with version 1.0.0 I have tried not to have any breaking changes which should be very easy given such simple hardware. 
 If you want to contribute and make any changes to this repo please ensure that you don't break any backwards compatibility to the hardware unless you plan on forking it and making it your own. When making non-breaking minor changes to the design please use a branch with the next minor version(1.+.0) or next patch version(1.x.+) and update the schematic and pcb accordingly.
 
 ## __Building the Hardware in Kicad__
-When generating the appropriate gerber and drill files they should go in the [gerbers](./gerbers/) folder. Any new version should provide a zipped in same folder containing all the build files and replacing the old version. This should make it easy to upload the design to the pcb manufacturers. The defaults in Kicad should befine to generate gerbers and drill files only the output directory should have to be changed.
+When generating the appropriate gerber and drill files they should go in the [gerbers](./manufacturing/gerbers/) folder. Any new version should provide a zipped file in [manufacturing](./manufacturing/) folder containing all the build files and replacing the old version. This should make it easy to upload the design to the pcb manufacturers. The defaults in Kicad should befine to generate gerbers and drill files only the output directory should have to be changed.
 
 ## __BOM__
 | ID | Designator | Package                            | Quantity |         Designation         |       Part Number/Link      |
