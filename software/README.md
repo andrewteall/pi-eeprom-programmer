@@ -41,4 +41,4 @@ If there's anything you'd like to add or find a bug please open an [issue](https
 
 
 ## __License__
-This project is licensed under the [MIT-0 License](../LICENSE). You are free to use, modify, and distribute the project according to the terms of the license.
+This software project is licensed under the [MIT-0 License](LICENSE). You are free to use, modify, and distribute the project according to the terms of the license.
