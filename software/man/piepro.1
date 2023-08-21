@@ -1,0 +1,134 @@
+.\" Manpage for piepro.
+.\" Contact https://github.com/andrewteall/pi-eeprom-programmer/issues to correct errors or typos.
+
+.TH piepro 1 "15 Sep 2023" "1.0.0" "User Commands"
+
+.SH NAME
+piepro \- Read and Write EEPROMS via Raspberry pi 4/400 GPIO
+
+.SH SYNOPSIS
+piepro [OPTION]... [FILE]...
+
+.SH DESCRIPTION
+piepro is a program to read and write EEPROMS via Raspberry pi 4/400 GPIO
+
+.SH OPTIONS
+Mandatory arguments to long options are mandatory for short options too.
+
+.I
+.B -b,  --board                
+.RS 
+Specify the SoC board used. Default: Raspberry Pi 4/400 
+.RE
+
+.I
+.B  -c,  --compare  
+.RS             
+Compare file and EEPROM and print differences.
+.RE
+
+.I
+.B  -d,  --dump N
+.RS 
+Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.
+.RE
+
+.I
+.B  -f,  --force
+.RS
+Force writing of every byte instead of checking for existing value first.
+.RE
+
+.I
+.B  -i,  --image FILE
+.RS
+The Filename to use.
+.RE
+
+.I
+.B  -id, --i2c-device-id
+.RS
+The Address id of the I2C device.
+.RE
+
+.I
+.B  -h,  --help
+.RS
+Print this message and exit.
+.RE
+
+.I
+.B  -l,  --limit N
+.RS 
+Specify the maximum address to operate.
+.RE
+
+.I
+.B       --no-validate-write
+.RS
+Do not perform a read directly after writing to verify the data was written.
+.RE
+
+.I
+.B  -m,  --model MODEL
+.RS
+Specify EERPOM device model. Default: AT28C16.
+.RE
+
+.I
+.B  -r,  --read ADDRESS
+.RS
+Read the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.
+.RE
+
+.I
+.B  -rb, --read-byte ADDRESS
+.RS
+Read From specified ADDRESS.
+.RE
+
+.I
+.B  -s,  --start N
+.RS
+Specify the minimum address to operate.
+.RE
+
+.I
+.B  -t,  --text
+.RS
+Interpret file as a text. Default: binary
+.RS
+Text File format: 
+[00000000]00000000 00000000
+.RE
+.RE
+
+.I
+.B  -v,  --v[vvvv]
+.RS
+Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.
+.RE
+
+.I
+.B  -w,  --write
+.RS
+Write EEPROM with specified file.
+.RE
+
+.I
+.B  -wb, --write-byte ADDRESS DATA
+.RS
+Write specified DATA to ADDRESS.
+.RE
+
+.I
+.B  -wd, --write-delay
+.RS
+N Number of microseconds to delay between writes.
+.RE
+
+
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Andrew Teall https://github.com/andrewteall/pi-eeprom-programmer/issues
