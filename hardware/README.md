@@ -34,7 +34,11 @@ Starting with version 1.0.0 I have tried not to have any breaking changes which 
 If you want to contribute and make any changes to this repo please ensure that you don't break any backwards compatibility to the hardware unless you plan on forking it and making it your own. When making non-breaking minor changes to the design please use a branch with the next minor version(1.+.0) or next patch version(1.x.+) and update the schematic and pcb accordingly.
 
 ## __Building the Hardware in Kicad__
-When generating the appropriate gerber and drill files they should go in the [gerbers](./manufacturing/gerbers/) folder. Any new version should provide a zipped file in [manufacturing](./manufacturing/) folder containing all the build files and replacing the old version. This should make it easy to upload the design to the pcb manufacturers. The defaults in Kicad should befine to generate gerbers and drill files only the output directory should have to be changed.
+When generating the appropriate gerber and drill files they should go in the [gerbers](./manufacturing/gerbers/) folder. Any new version should provide a zipped file in [manufacturing](./manufacturing/) folder containing all the build files and replacing the old version. 
+```
+zip manufacturing/pi-eeprom-programmer-$(git rev-parse --abbrev-ref HEAD).zip manufacturing/gerbers/*
+```
+This should make it easy to upload the design to the pcb manufacturers. The defaults in Kicad should befine to generate gerbers and drill files only the output directory should have to be changed.
 
 ## __BOM__
 | ID | Designator | Package                            | Quantity |         Designation         |       Part Number/Link      |
