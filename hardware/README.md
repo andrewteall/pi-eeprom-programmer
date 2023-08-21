@@ -62,6 +62,9 @@ For the Pi 400 the Programmer should stick out of the back of the case and for a
 
 You can then use the software provided in this repositor to read and write EEPROMs.
 
+## __EEPROM Voltages__
+See [A Quick Note About EEPROM Voltages](../README.md#a-quick-note-about-eeprom-voltages)
+
 ## __Features, Bugs, and Contributing__
 If there's anything you'd like to add or find a bug please open an [issue](https://github.com/andrewteall/pi-eeprom-programmer/issues). If you'd like to implement those chages yourself please feel free to open a PR or fork the repository and make it your own.
 
