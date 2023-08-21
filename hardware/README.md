@@ -26,12 +26,30 @@ If you want to contribute and make any changes to this repo please ensure that y
 ## __Building the Hardware in Kicad__
 When generating the appropriate gerber and drill files they should go in the [gerbers](./gerbers/) folder. Any new version should provide a zipped in same folder containing all the build files and replacing the old version. This should make it easy to upload the design to the pcb manufacturers. The defaults in Kicad should befine to generate gerbers and drill files only the output directory should have to be changed.
 
+## __BOM__
+| ID | Designator | Package                            | Quantity |         Designation         |       Part Number/Link      |
+|:--:|:----------:|------------------------------------|:--------:|-----------------------------|:---------------------------:|
+| 1  | J1         | PinSocket_2x20_P2.54mm_Horizontal  |    1     | Raspberry Pi GPIO Connector |  [SFH11-PBPC-D20-RA-BK](https://www.digikey.com/en/products/detail/sullins-connector-solutions/SFH11-PBPC-D20-RA-BK/1990101)  |
+| 2  | U1         | DIP-28_W15.24mm_Socket             |    1     | ZIF Socket                  |  [28-6554-11](https://www.digikey.com/en/products/detail/aries-electronics/28-6554-11/27594)                                  |
+| 3  | U2         | DIP-8_W7.62mm_Socket               |    1     |                             |                                                                                                                               |
+| 4  | J2         | PinHeader_1x03_P2.54mm_Vertical    |    1     | Conn_01x03                  |  [TS-103-G-A](https://www.digikey.com/en/products/detail/samtec-inc/TS-103-G-A/1105459)                                       |
+| 5  | *          | Conn_Jumper_Shorting               |    1     | *                           |  [QPC02SXGN-RC](https://www.digikey.com/en/products/detail/sullins-connector-solutions/QPC02SXGN-RC/2618262)                                       |
+
+\* The Jumper Shunt is not listed anywhere in the schematic
+
+__Notes:__
+* U2 is not required unless you are not using the ZIF Socket or 28-Pin IC Socket in which case an 8-Pin IC Socket may be used.
+* Similarly U1 may be substituted for a less expensive 28-Pin IC Socket.
+* In certain cases if the ZIF socket is not used both the 28-Pin Socket and 8-Pin Socket may be used at the same time.
+* All the parts can be found on via other sources so feel free to find them where they are the cheapest.
+
+
 ## __Assembling the PCB__
 There are a very low number of components on the board and assembly is straight forward. One of the biggest options you have is the type of socket used. The BOM includes a Universal ZIF Socket(U1) that allows for plugging in both narrow and wide ICs, however a standard 28-Pin Wide DIP Socket(U1) can be used if you only need to program wide chips or an 8-Pin DIP Socket(U2) can be used for small serial EEPROMs. You can use either or, with a little encouragement, have both sockets in place at the same time. This is much cheaper than using the ZIF sockets but not as elegant(or as good for the IC Pins). 
 
 J2 is a 1x3 Pin Header meant to be used with a shunt jumper to select between the different types of EEPROMs, 24-Pin or 28-Pin Parallel EEPROMS or 8 Pin Serial EEPROMs. You can also install a small SPDT sliding switch in place of the Pin Headers and the serial programming will work in either position.
 
-J1 shuold be right angle 40-Pin connector. If you use a standard vertical 40-Pin Connector it will orient the EEPROM Programmer vertical/perpendicular to a Pi 400 and parallel and updside down to a standard Pi 4.
+J1 should be right angle 40-Pin connector. If you use a standard vertical 40-Pin Connector it will orient the EEPROM Programmer vertical/perpendicular to a Pi 400 and parallel and updside down to a standard Pi 4.
 
 While I've included sources for all the parts feel free to use your own or source them from wherever you like or can find them cheapest. I've used a number of combinations of different components in testing and they've all worked fine.
 
