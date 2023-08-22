@@ -136,4 +136,4 @@ If there's anything you'd like to add or find a bug please open an [issue](https
 
 
 ## __License__
-This repository is licensed under the [MIT-0 License](LICENSE) for everything not contained in the hardware folder and it's sub folders. For all files and folders in the hardware folder and it's sub folders, they are lcensed under [CC0](https://creativecommons.org/publicdomain/zero/1.0/). You are free to use, modify, and distribute the project according to the terms of these licenses.
+This repository is licensed under the [MIT-0 License](LICENSE) for everything not contained in the hardware folder and it's sub folders. For all files and folders in the hardware folder and it's sub folders, they are licensed under [CC0](https://creativecommons.org/publicdomain/zero/1.0/). You are free to use, modify, and distribute the project according to the terms of these licenses.
