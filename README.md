@@ -60,7 +60,7 @@ I/O2 ->GPIO26 (37) (38) GPIO20        |
           GND (39) (40) GPIO21 ->     | 
    ```
 
-   Alternatively a pcb can be ordered from any of the various manufacturers from the zipped gerbers contained in `hardware/gerbers/pi-eeprom-programmer-v.v.v.zip`.
+   Alternatively a pcb can be ordered from any of the various manufacturers from the zipped gerbers contained in `hardware/manufacturing/pi-eeprom-programmer-v.v.v.zip`.
 
 ### __Installation and Raspberry Pi Setup__
 
