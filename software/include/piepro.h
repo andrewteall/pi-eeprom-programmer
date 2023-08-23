@@ -1,5 +1,6 @@
 #ifndef PIEPRO_H
     #define PIEPRO_H 1
+    #include "gpio.h"
     
     #define MAX_ADDRESS_PINS 15
     #define MAX_DATA_PINS 8
@@ -114,8 +115,9 @@
     struct GPIO_CHIP{
         char *chipname;
         int numGPIOLines;
-        struct gpiod_chip *chip;
+        struct gpiod_chip* chip;
         struct gpiod_line* gpioLines[40];
+        struct CHIP_CONFIG config;
     };
 
     /**

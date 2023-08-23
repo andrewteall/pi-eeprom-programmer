@@ -14,6 +14,12 @@
     #define INPUT 0
     #define OUTPUT 1
 
+    struct CHIP_CONFIG{
+        int isSetup;
+        int numLinesInUse;
+        int numLinesAvailable;
+    };
+
     /**
      * @brief Setups Raspberry Pi GPIO Pins.
      *        Must be called before any GPIO is used.
@@ -22,43 +28,49 @@
      * @param **gpioLines A pointer to an array of gpiod_lines to be init.
      * @param *consumer String name of the consumer.
      * @param numGPIOLines Number of lines used to be setup
+     * @param *config Pointer to the chip configuration to be used
      * @return int 0 if successful -1 if any error occurs.
      */
-    int setupGPIO(struct gpiod_chip** chip, char* chipname, struct gpiod_line** gpioLines,char* consumer,int numGPIOLines);
+    int setupGPIO(struct gpiod_chip** chip, char* chipname, struct gpiod_line** gpioLines, \
+                    char* consumer,int numGPIOLines, struct CHIP_CONFIG* config);
 
     /**
      * @brief Set GPIO Pins to input or output.
      * @param **gpioLines Pointer to an array of gpiod_lines.
      * @param gpioLineNumber the GPIO number to be control direction.
      * @param direction The mode of the GPIO Pin. INPUT or OUTPUT
+     * @param *config Pointer to the chip configuration to be used
      * @return int 0 if successful -1 if any error occurs.
      */
-    int setPinModeGPIO(struct gpiod_line **gpioLines, int gpioLineNumber,int direction);
+    int setPinModeGPIO(struct gpiod_line **gpioLines, int gpioLineNumber,int direction, struct CHIP_CONFIG* config);
 
     /**
      * @brief Read the value of the specified GPIO Pin.
      * @param **gpioLines Pointer to an array of gpiod_lines.
      * @param gpioLineNumber the GPIO number to be read from.
+     * @param *config Pointer to the chip configuration to be used
      * @return int 0 if successful -1 if any error occurs.
      */
-    int readGPIO(struct gpiod_line **gpioLines,int gpioLineNumber);
+    int readGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,struct CHIP_CONFIG* config);
 
     /**
      * @brief Write the value to the specified GPIO Pin.
      * @param **gpioLines Pointer to an array of gpiod_lines.
      * @param gpioLineNumber the GPIO number to be written to.
      * @param value The value to write. HIGH or LOW.
+     * @param *config Pointer to the chip configuration to be used
      * @return int 0 if successful -1 or non-zero if any error occurs.
      */
-    int writeGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,int value);
+    int writeGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,int value, struct CHIP_CONFIG* config);
     
     /**
      * @brief Releases a gpiod_chip and an array of gpiod_lines.
      * @param *chip Pointer to a gpiod_chip struct for the chip to be released.
      * @param **gpioLines Pointer to an array of gpiod_lines to be released.
+     * @param *config Pointer to the chip configuration to be used
      * @param numGPIOLines Number of lines used to be cleanedup
      */
-    void cleanupGPIO(struct gpiod_chip *chip,struct gpiod_line **gpioLines,int numGPIOLines);
+    void cleanupGPIO(struct gpiod_chip *chip,struct gpiod_line **gpioLines,int numGPIOLines, struct CHIP_CONFIG* config);
 
     /**
      * @brief Sets up GPIO pins to use the dedicated I2C function.
