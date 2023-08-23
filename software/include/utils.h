@@ -11,60 +11,37 @@
      */
     enum LOGLEVEL {OFF,FATAL,ERROR,WARNING,INFO,DEBUG};
 
-    enum FILE_TYPE {TEXT_FILE,BINARY_FILE};
-	enum APP_FUNCTIONS {NOTHING,WRITE_FILE_TO_ROM,COMPARE_FILE_TO_ROM,DUMP_ROM,WRITE_SINGLE_BYTE_TO_ROM,\
-                            READ_SINGLE_BYTE_FROM_ROM,PRINT_VERSION};
-
-    enum BOARD_TYPE{RPI4};
-
-
-    /**
-     * @struct OPTIONS
-     * @brief This structure contains all the configuration parameters for a given
-     *        system.
-     */
-    struct OPTIONS {
-        char* filename;
-        long limit;
-        long startValue;
-        int dumpFormat;
-        int validateWrite;
-        int force;
-        int action;
-        int fileType;
-        int eepromModel;
-        int writeCycleUSec;
-        char i2cId;
-        int boardType;
-
-        int addressParam;
-        int dataParam;
-
-        char* consumer;
-        char* chipname;
-        };  
-
-    /**
-     * @brief Parses all the command line Arguments and sets the appropriate options
-     *        in the OPTIONS struct.
-     * @param sOptions A pointer to the OPTIONS struct to store all the configured
-     *        options.
-     * @param argc Count of command line arguments.
-     * @param argv A pointer to the Array of command line arguments.
-     * @return 
-     */
-    int parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]);
-
-    void printHelp(void);
-    void printVersion();
     
+    /**
+     * @brief Converts a number to it's corresponding binary string.
+     * @param *binStrBuf The buffer to store the converted string.
+     * @param num The number to convert.
+     * @param strLenBuf Size of the binStrBuf buffer.
+     * @return char* The pointer to the buffer of the converted number.
+     */
+    char* num2binStr(char* binStrBuf, int num, int strBufLen);
 
-    char *num2binStr(char*,int,int);
-    int binStr2num(const char*);
-    int str2num(char*);
+    /**
+     * @brief Converts a binary string to it's corresponding value.
+     * @param *binStr The string to convert
+     * @return int The resulting number of the conversion. -1 if error.
+     */
+    int binStr2num(char *binStr);
+    
+    /**
+     * @brief Converts a string to it's corresponding value.
+     * @param numStr The string to convert
+     * @return int The resulting number of the conversion. -1 if error.
+     */
+    int str2num(char *numStr);
 
-    long expo(int, int);
-
+    /**
+     * @brief Performs exponentiation of two numbers.
+     * @param base The number to be exponentiated
+     * @param power The exponent
+     * @return long The result of the performed calculation.
+     */
+    long expo(int base, int power);
 
     /**
      * @brief Prints a message to stdout with the loggingLevel prepended.
@@ -81,5 +58,9 @@
      */
     int setLoggingLevel(int logLevel);
 
+    /**
+     * @brief Gets the logging level used by the program
+     * @returns int Returns the loggingLevel.
+     */
     int getLoggingLevel(void);
 #endif

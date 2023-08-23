@@ -7,7 +7,6 @@
 #include <sys/ioctl.h>			//Needed for I2C port
 #include <sys/mman.h>
 
-
 #include "gpio.h"
 #include "utils.h"
 
@@ -29,30 +28,38 @@
 #define GPIO_PULL *(gpio+37) // Pull up/pull down
 #define GPIO_PULLCLK0 *(gpio+38) // Pull up/pull down clock
 
+
 #define SDA_PIN 2
 #define SCL_PIN 3
 #define ALT_FUNC 0
 
-
-int setupGPIO(struct gpiod_chip *chip, char* chipname, struct gpiod_line **gpioLines,char* consumer){
+/* Sets up GPIO to be used */
+int setupGPIO(struct gpiod_chip** chip, char* chipname, struct gpiod_line** gpioLines,char* consumer,int numGPIOLines){
     int err = 0;
     
-    chip = gpiod_chip_open_by_name(chipname);
-    
-    for(int i=0; i < 28 && err == 0; i++){
-        gpioLines[i] = gpiod_chip_get_line(chip, i);
-        err = (gpioLines[i] == NULL);
-
-        err = gpiod_line_request_output(gpioLines[i], consumer, 0) || err;
-        if(err){
-            ulog(ERROR,"Error initially requesting line for OUTPUT");
-        }
+    *chip = gpiod_chip_open_by_name(chipname);
+    if (*chip == NULL){
+        ulog(ERROR,"Unable to get chip by name: %s",chipname);
+        return -1;
     }
 
+    for(int i=0; i < numGPIOLines && err == 0; i++){
+        gpioLines[i] = gpiod_chip_get_line(*chip, i);
+        if(gpioLines[i] == NULL){
+            ulog(ERROR,"Unable to get line: %i",i);
+            err = -1;
+        } else {
+            err = gpiod_line_request_output(gpioLines[i], consumer, 0);
+            if(err){
+                ulog(ERROR,"Error initially requesting line for OUTPUT");
+            }
+        }
+    }
     return err;
 }
 
-int setPinModeGPIO(struct gpiod_chip *chip, struct gpiod_line **gpioLines, int gpioLineNumber,int pinMode){
+/* Set the GPIO Pin mode to be INPUT or OUTPUT */
+int setPinModeGPIO(struct gpiod_line **gpioLines, int gpioLineNumber,int pinMode){
     int err = 0;
 
     if(pinMode == OUTPUT){
@@ -69,11 +76,22 @@ int setPinModeGPIO(struct gpiod_chip *chip, struct gpiod_line **gpioLines, int g
         }
     } else {
         ulog(ERROR,"Invalid Pin Mode: %i",pinMode);
-        err = 1;
+        err = -1;
     }
     return err;
 }
 
+/* Read from a specified GPIO Pin */
+int readGPIO(struct gpiod_line **gpioLines,int gpioLineNumber){
+    int val = 0;
+    val = gpiod_line_get_value(gpioLines[gpioLineNumber]);
+    if( val == -1){
+        ulog(ERROR,"Failed to read input on line %i",gpioLineNumber);
+    }
+    return val;
+}
+
+/* Write a value to a specified GPIO Pin */
 int writeGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,int value){
     int err = 0;
     err = gpiod_line_set_value(gpioLines[gpioLineNumber],value);
@@ -83,42 +101,31 @@ int writeGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,int value){
     return err;
 }
 
-int readGPIO(struct gpiod_line **gpioLines,int gpioLineNumber){
-    int val = 0;
-    val = gpiod_line_get_value(gpioLines[gpioLineNumber]);
-    if( val < 0){
-        ulog(ERROR,"Failed to read input on line %i",gpioLineNumber);
+/* Release the chip and GPIO lines */
+void cleanupGPIO(struct gpiod_chip *chip,struct gpiod_line **gpioLines, int numGPIOLines){
+    // Releasing the gpioLines may not be needed since I think it's handles by
+    // gpiod_chip_close
+    for(int i=0; i < numGPIOLines; i++){
+        gpiod_line_release(gpioLines[i]);
     }
-    return val;
-}
-
-
-int cleanupGPIO(struct gpiod_chip *chip,struct gpiod_line **gpioLines){
-    int err = 0;
-
-    for(int i=0; i < 28 && err == 0; i++){
-        if (i != 2 && i != 3){
-            gpiod_line_release(gpioLines[i]);
-        }
-    }
-
     gpiod_chip_close(chip);
-    return err;
+    
 }
 
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
 
-int setupI2C(){
+/* Sets up an I2C device to be used via the built in I2C pins */
+int setupI2C(char I2CId){
     int  mem_fd;
     void *gpio_map;
     volatile unsigned *gpio;
 
     /* open /dev/gpiomem */
     if ((mem_fd = open("/dev/gpiomem", O_RDWR|O_SYNC) ) < 0) {
-        ulog(ERROR,"can't open /dev/gpiomem \n");
-        return 1;
+        ulog(ERROR,"Error opening /dev/gpiomem");
+        return -1;
     }
 
     /* mmap GPIO */
@@ -135,7 +142,7 @@ int setupI2C(){
 
     if (gpio_map == MAP_FAILED) {
         ulog(ERROR,"mmap error");//errno also set!
-        return 1;
+        return -1;
     }
 
     // Always use volatile pointer!
@@ -148,30 +155,47 @@ int setupI2C(){
     SET_GPIO_ALT(gpio, SCL_PIN, ALT_FUNC);
     
     int fd =  open("/dev/i2c-1", O_RDWR );
-    ioctl(fd, I2C_SLAVE, 0x50);
+    if(fd == -1){
+        ulog(ERROR,"Error opening device.");
+        return -1;
+    }
+    if(ioctl(fd, I2C_SLAVE, I2CId) == -1){
+         ulog(ERROR,"Error cnofiguring device.");
+         return -1;
+    }
     usleep(1000); // Chip Vcc Startup
     return fd;
 }
 
-char readByteI2C(int fd, int address){
-    char buf[1] = {address};
-    int err = write(fd,buf,1);
-    err = read(fd,buf,1);
-    if(err == -1){
-        ulog(ERROR,"Cannot read byte at Address: %i",address);
+/* Read from a specified address via I2C */
+int readByteI2C(int fd, int address){
+    int buf[1] = {address};
+    int bytesWritten = write(fd,buf,1);
+    if(bytesWritten == -1){
+        ulog(ERROR,"Error reading byte at Address: %i",address);
+        return bytesWritten;
+    }
+    int bytesRead = read(fd,buf,1);
+    if(bytesRead == -1){
+        buf[0] = bytesRead;
+        ulog(ERROR,"Error reading byte at Address: %i",address);
     }
     return buf[0];
 }
 
-char writeByteI2C(int fd, int address, char data){
-    int err = 0;
-    char buf[2] = {address, data};
+/* Write to a specified address via I2C */
+int writeByteI2C(int fd, int address, char data){
+    int buf[2] = {address, data};
 
-    err = write(fd,buf,2);
-    usleep(10000);
-    return err;
+    int bytesWritten = write(fd,buf,2);
+    if(bytesWritten == -1){
+        ulog(ERROR,"Error writing byte: %i at Address: %i",data, address);
+    }
+    // usleep(10000);
+    return bytesWritten;
 }
 
+/* Closes a specified I2C device */
 void cleanupI2C(int fd){
     close(fd);
 }
