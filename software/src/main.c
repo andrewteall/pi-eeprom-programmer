@@ -49,15 +49,17 @@ int main(int argc, char *argv[]){
                 error = writeByteToAddress(&gpioChip, &eeprom,sOptions.addressParam,sOptions.dataParam,&sOptions,NULL);
                 break;
             case READ_SINGLE_BYTE_FROM_ROM:
-                if(readByteFromAddress(&gpioChip,&eeprom,sOptions.addressParam) == -1){
-                    error = 1;
-                } else {
-                    printf("0x%2x\n", readByteFromAddress(&gpioChip,&eeprom,sOptions.addressParam));
+                error = readByteFromAddress(&gpioChip,&eeprom,sOptions.addressParam);
+                if(error != -1){
+                    printf("0x%2x\n", error);
                 }
                 break;
         }
         /*********************************************************************/
         cleanupHardware(&gpioChip, &eeprom);
+    }
+    if(error == -1){
+        error = 1;
     }
 	return error;
 }
