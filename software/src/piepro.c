@@ -46,18 +46,18 @@ const int EEPROM_WRITE_CYCLE_USEC[] = 	{
 										};
 
 /* Local function wrapper to writeGPIO  */
-void setPinLevel(struct gpiod_line **gpioLines, int pin, int level, struct CHIP_CONFIG* config){
-	writeGPIO(gpioLines,pin, level, config);
+void setPinLevel(struct GPIO_CHIP* gpioChip, int pin, int level){
+	writeGPIO(gpioChip->gpioLines,pin, level,&gpioChip->config);
 }
 
 /* Local function wrapper to readGPIO  */
-int getPinLevel(struct gpiod_line **gpioLines, int pin,struct CHIP_CONFIG* config){
-	return readGPIO(gpioLines,pin,config);
+int getPinLevel(struct GPIO_CHIP* gpioChip, int pin){
+	return readGPIO(gpioChip->gpioLines,pin,&gpioChip->config);
 }
 
 /* Local function wrapper to setPinModeGPIO  */
-void setPinMode(struct gpiod_line** gpioLines, int pin, int mode, struct CHIP_CONFIG* config){
-	setPinModeGPIO(gpioLines,pin, mode,config );
+void setPinMode(struct GPIO_CHIP* gpioChip, int pin, int mode){
+	setPinModeGPIO(gpioChip->gpioLines,pin, mode,&gpioChip->config );
 }
 
 /* Local function wrapper to readByteI2C  */
@@ -71,19 +71,19 @@ int setByteI2C(int fd, int address, char data){
 }
 
 /* Set Address eeprom to value to read from or write to */
-void setAddressPins(struct gpiod_line** gpioLines, struct EEPROM* eeprom,unsigned int addressToSet,struct CHIP_CONFIG* config){
+void setAddressPins(struct GPIO_CHIP* gpioChip, struct EEPROM* eeprom,unsigned int addressToSet){
 	for (char pin = 0;pin<eeprom->maxAddressLength;pin++){
 		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
-			setPinLevel(gpioLines,eeprom->addressPins[(int)pin],(addressToSet & 1), config);
+			setPinLevel(gpioChip,eeprom->addressPins[(int)pin],(addressToSet & 1));
 			addressToSet >>= 1;
 		}
 	}
 }
 
 /* Set Data eeprom to value to write */
-void setDataPins(struct gpiod_line** gpioLines, struct EEPROM* eeprom,char dataToSet,struct CHIP_CONFIG* config){
+void setDataPins(struct GPIO_CHIP* gpioChip, struct EEPROM* eeprom,char dataToSet){
 	for (char pin = 0;pin<eeprom->maxDataLength;pin++){
-		setPinLevel(gpioLines,eeprom->dataPins[(int)pin],(dataToSet & 1), config);
+		setPinLevel(gpioChip,eeprom->dataPins[(int)pin],(dataToSet & 1));
 		dataToSet >>= 1;
 	}
 }
@@ -139,18 +139,18 @@ int initHardware(struct EEPROM *eeprom, struct GPIO_CHIP* gpioChip, struct OPTIO
 
 
 		for(int i=0;i<3;i++){
-			setPinMode(gpioChip->gpioLines,eeprom->addressPins[i], OUTPUT, &gpioChip->config);
-			setPinLevel(gpioChip->gpioLines,eeprom->addressPins[i], LOW, &gpioChip->config);
+			setPinMode(gpioChip,eeprom->addressPins[i], OUTPUT);
+			setPinLevel(gpioChip,eeprom->addressPins[i], LOW);
 		}
 
 		if (eeprom->i2cId != 0x50){
-			setAddressPins(gpioChip->gpioLines, eeprom, eeprom->i2cId - 0x50, &gpioChip->config);
+			setAddressPins(gpioChip, eeprom, eeprom->i2cId - 0x50);
 		}
 
-		setPinMode(gpioChip->gpioLines,eeprom->writeProtectPin, OUTPUT, &gpioChip->config);
-		setPinMode(gpioChip->gpioLines,eeprom->vccPin, OUTPUT, &gpioChip->config);
-		setPinLevel(gpioChip->gpioLines,eeprom->writeProtectPin, HIGH, &gpioChip->config);
-		setPinLevel(gpioChip->gpioLines,eeprom->vccPin, HIGH, &gpioChip->config);
+		setPinMode(gpioChip,eeprom->writeProtectPin, OUTPUT);
+		setPinMode(gpioChip,eeprom->vccPin, OUTPUT);
+		setPinLevel(gpioChip,eeprom->writeProtectPin, HIGH);
+		setPinLevel(gpioChip,eeprom->vccPin, HIGH);
 
 	} else {
 							/*   GPIO // WiPi // Pin   */ 
@@ -195,25 +195,25 @@ int initHardware(struct EEPROM *eeprom, struct GPIO_CHIP* gpioChip, struct OPTIO
 		for(int i=0;i<eeprom->maxAddressLength;i++){
 			if ((eeprom->model == AT28C64) && ((i == 13) || (i == 14))){
 				// handle NC pins
-				setPinMode(gpioChip->gpioLines,eeprom->addressPins[i], INPUT, &gpioChip->config);	
+				setPinMode(gpioChip,eeprom->addressPins[i], INPUT);	
 			} else {
 				// ulog(DEBUG,"Setting Mode for Pin: %i",i);
-				setPinMode(gpioChip->gpioLines,eeprom->addressPins[i], OUTPUT, &gpioChip->config);	
+				setPinMode(gpioChip,eeprom->addressPins[i], OUTPUT);	
 			}
 		}
 	
 		for(int i=0;i<eeprom->maxDataLength;i++){
-			setPinMode(gpioChip->gpioLines,eeprom->dataPins[i], INPUT, &gpioChip->config);
+			setPinMode(gpioChip,eeprom->dataPins[i], INPUT);
 		}
 
-		setPinMode(gpioChip->gpioLines,eeprom->chipEnablePin, OUTPUT, &gpioChip->config);
-		setPinMode(gpioChip->gpioLines,eeprom->outputEnablePin, OUTPUT, &gpioChip->config);
-		setPinMode(gpioChip->gpioLines,eeprom->writeEnablePin, OUTPUT, &gpioChip->config);
-		setPinMode(gpioChip->gpioLines,eeprom->vccPin, OUTPUT, &gpioChip->config);
-		setPinLevel(gpioChip->gpioLines,eeprom->chipEnablePin, LOW, &gpioChip->config);
-		setPinLevel(gpioChip->gpioLines,eeprom->outputEnablePin, HIGH, &gpioChip->config);
-		setPinLevel(gpioChip->gpioLines,eeprom->writeEnablePin, HIGH, &gpioChip->config);
-		setPinLevel(gpioChip->gpioLines,eeprom->vccPin, HIGH, &gpioChip->config);
+		setPinMode(gpioChip,eeprom->chipEnablePin, OUTPUT);
+		setPinMode(gpioChip,eeprom->outputEnablePin, OUTPUT);
+		setPinMode(gpioChip,eeprom->writeEnablePin, OUTPUT);
+		setPinMode(gpioChip,eeprom->vccPin, OUTPUT);
+		setPinLevel(gpioChip,eeprom->chipEnablePin, LOW);
+		setPinLevel(gpioChip,eeprom->outputEnablePin, HIGH);
+		setPinLevel(gpioChip,eeprom->writeEnablePin, HIGH);
+		setPinLevel(gpioChip,eeprom->vccPin, HIGH);
 		
 	}
 	usleep(5000); //startup delay
@@ -229,21 +229,21 @@ int readByteFromAddress(struct GPIO_CHIP* gpioChip, struct EEPROM* eeprom,unsign
 		return -1;
 	}
 	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
-		setPinLevel(gpioChip->gpioLines,eeprom->writeProtectPin,HIGH, &gpioChip->config);
+		setPinLevel(gpioChip,eeprom->writeProtectPin,HIGH);
 		byteVal = getByteI2C(eeprom->fd,addressToRead);
 	} else {
 		// set the address
-		setAddressPins(gpioChip->gpioLines, eeprom,addressToRead,&gpioChip->config);
+		setAddressPins(gpioChip, eeprom,addressToRead);
 		// enable output from the chip
-		setPinLevel(gpioChip->gpioLines,eeprom->outputEnablePin,LOW, &gpioChip->config);
+		setPinLevel(gpioChip,eeprom->outputEnablePin,LOW);
 		// set the rpi to input on it's gpio data lines
 		for(int i=0;i<eeprom->maxDataLength;i++){
-			setPinMode(gpioChip->gpioLines,eeprom->dataPins[i],INPUT, &gpioChip->config);
+			setPinMode(gpioChip,eeprom->dataPins[i],INPUT);
 		}
 		// read the eeprom and store to string
 		for(int i=eeprom->maxDataLength-1;i>=0;i--){
 			byteVal <<= 1;
-			byteVal |= (getPinLevel(gpioChip->gpioLines,eeprom->dataPins[i],&gpioChip->config) & 1);		
+			byteVal |= (getPinLevel(gpioChip,eeprom->dataPins[i]) & 1);		
 		}
 	}
 	// return the number
@@ -259,9 +259,9 @@ int writeByteToAddress(struct GPIO_CHIP* gpioChip, struct EEPROM* eeprom,unsigne
 		return -1;
 	}
 	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
-		setPinLevel(gpioChip->gpioLines,eeprom->writeProtectPin,HIGH, &gpioChip->config);
+		setPinLevel(gpioChip,eeprom->writeProtectPin,HIGH);
 		if ( sOptions->force || dataToWrite != getByteI2C(eeprom->fd,addressToWrite )){
-			setPinLevel(gpioChip->gpioLines,eeprom->writeProtectPin,LOW, &gpioChip->config);
+			setPinLevel(gpioChip,eeprom->writeProtectPin,LOW);
 			waitWriteCycle(eeprom->writeCycleWait);
 			if (-1 != setByteI2C(eeprom->fd,addressToWrite, dataToWrite )){
 				waitWriteCycle(eeprom->writeCycleWait);
@@ -280,20 +280,20 @@ int writeByteToAddress(struct GPIO_CHIP* gpioChip, struct EEPROM* eeprom,unsigne
 	} else {
 		if ( sOptions->force || dataToWrite != readByteFromAddress(gpioChip, eeprom,addressToWrite)){
 			// set the address
-			setAddressPins(gpioChip->gpioLines, eeprom,addressToWrite,&gpioChip->config);
+			setAddressPins(gpioChip, eeprom,addressToWrite);
 			// disable output from the chip
-			setPinLevel(gpioChip->gpioLines,eeprom->outputEnablePin,HIGH, &gpioChip->config);
+			setPinLevel(gpioChip,eeprom->outputEnablePin,HIGH);
 			// set the rpi to output on it's gpio data lines
 			for(int i=0;i<eeprom->maxDataLength;i++){
-					setPinMode(gpioChip->gpioLines,eeprom->dataPins[i], OUTPUT, &gpioChip->config);
+					setPinMode(gpioChip,eeprom->dataPins[i], OUTPUT);
 			}
 			// Set the data eeprom to the data to be written
-			setDataPins(gpioChip->gpioLines, eeprom,dataToWrite, &gpioChip->config);
+			setDataPins(gpioChip, eeprom,dataToWrite);
 			
 			// perform the write
-			setPinLevel(gpioChip->gpioLines,eeprom->writeEnablePin,LOW, &gpioChip->config);
+			setPinLevel(gpioChip,eeprom->writeEnablePin,LOW);
 			usleep(1);
-			setPinLevel(gpioChip->gpioLines,eeprom->writeEnablePin,HIGH, &gpioChip->config);
+			setPinLevel(gpioChip,eeprom->writeEnablePin,HIGH);
 			waitWriteCycle(eeprom->writeCycleWait);
 			if (sOptions->validateWrite == 1){
 				if ( dataToWrite != readByteFromAddress(gpioChip, eeprom,addressToWrite)){
