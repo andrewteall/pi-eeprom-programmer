@@ -6,8 +6,8 @@
 #include "utils.h"
 #include "gpio.h"
 
-static char* chipname = "gpiochip0";
-static char* consumer = "Pi EEPROM Programmer";
+static char* const chipname = "gpiochip0";
+static char* const consumer = "Pi EEPROM Programmer";
 
 
 const char* EEPROM_MODEL_STRINGS[] = 	{
