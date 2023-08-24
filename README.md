@@ -109,6 +109,7 @@ Usage: piepro [options] [file]
 Options:
  -b,        --board         Specify the SoC board used. Default: Raspberry Pi 4/400
  -c,        --compare       Compare file and EEPROM and print differences.
+            --chipname      Specify the chipname to use. Default: gpiochip0
  -d N,      --dump N        Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.
  -f,        --force         Force writing of every byte instead of checking for existing value first.
  -i FILE,   --image FILE    The Filename to use.
