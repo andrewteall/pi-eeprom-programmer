@@ -726,7 +726,16 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
 					ulog(INFO,"Dumping EEPROM to standard out");
-					sOptions->dumpFormat = str2num(argv[i+1]);
+					int tmpLog = getLoggingLevel();
+					setLoggingLevel(OFF);
+					int format = str2num(argv[i+1]);
+					setLoggingLevel(tmpLog);
+					if(format == -1 || format > 3){
+						ulog(INFO,"No dump format specified, invalid dump format, or number out of range. Using default.");
+						sOptions->dumpFormat = 3;
+					} else {
+						sOptions->dumpFormat = str2num(argv[i+1]);
+					}
 					sOptions->action = DUMP_ROM;
 				}
 			}
