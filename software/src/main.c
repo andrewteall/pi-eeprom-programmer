@@ -31,7 +31,7 @@ int main(int argc, char *argv[]){
                 // open file to read
                 romFile = fopen(sOptions.filename, "r");
                 if(romFile == NULL){
-                    fprintf(stderr,"Error Opening File");
+                    fprintf(stderr,"Error Opening File\n");
                     return 1;
                 }
                 if(sOptions.action == WRITE_FILE_TO_ROM){
