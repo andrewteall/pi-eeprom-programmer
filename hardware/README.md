@@ -36,7 +36,7 @@ If you want to contribute and make any changes to this repo please ensure that y
 ## __Building the Hardware in Kicad__
 When generating the appropriate gerber and drill files they should go in the [gerbers](./manufacturing/gerbers/) folder. Any new version should provide a zipped file in [manufacturing](./manufacturing/) folder containing all the build files and replacing the old version. 
 ```
-zip manufacturing/pi-eeprom-programmer-$(git rev-parse --abbrev-ref HEAD).zip manufacturing/gerbers/*
+zip -j manufacturing/pi-eeprom-programmer-$(git rev-parse --abbrev-ref HEAD).zip manufacturing/gerbers/*
 ```
 This should make it easy to upload the design to the pcb manufacturers. The defaults in Kicad should befine to generate gerbers and drill files only the output directory should have to be changed.
 
