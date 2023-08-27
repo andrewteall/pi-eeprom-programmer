@@ -28,7 +28,7 @@
 #define GPIO_PULL *(gpio+37) // Pull up/pull down
 #define GPIO_PULLCLK0 *(gpio+38) // Pull up/pull down clock
 
-
+#define MAX_USABLE_GPIO_LINES 34
 #define SDA_PIN 2
 #define SCL_PIN 3
 #define ALT_FUNC 0
@@ -58,6 +58,10 @@ int setupGPIO(struct gpiod_chip** chip, char* chipname, struct gpiod_line** gpio
         if (*chip == NULL){
             ulog(ERROR,"Unable to get chip by name: %s",chipname);
             return -1;
+        }
+        if(numGPIOLines > MAX_USABLE_GPIO_LINES && numGPIOLines < gpiod_chip_num_lines(*chip)){
+            ulog(ERROR,"Invalid Line Count Requested for Chip. Max for Chip: %i",MAX_USABLE_GPIO_LINES);
+            err = -1;
         }
         if(numGPIOLines >= gpiod_chip_num_lines(*chip)){
             ulog(ERROR,"Too Many Lines Requested for Chip. Max: %i",gpiod_chip_num_lines(*chip));
