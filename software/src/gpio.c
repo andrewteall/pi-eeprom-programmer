@@ -1,45 +1,37 @@
+#include <fcntl.h>
 #include <gpiod.h>
-#include <unistd.h>
-
 #include <linux/i2c-dev.h>
 #include <stdio.h>
-#include <fcntl.h>
 #include <sys/ioctl.h>			//Needed for I2C port
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include "gpio.h"
 #include "utils.h"
-
-#define BCM2708_PERI_BASE        0x20000000
-#define GPIO_BASE                (BCM2708_PERI_BASE + 0x200000) /* GPIO controller */
-#define PAGE_SIZE (4*1024)
-#define BLOCK_SIZE (4*1024)
-
-// GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y)
-#define INP_GPIO(gpio,g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
-#define OUT_GPIO(gpio,g) *(gpio+((g)/10)) |=  (1<<(((g)%10)*3))
-#define SET_GPIO_ALT(gpio,g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
-
-#define GPIO_SET *(gpio+7)  // sets   bits which are 1 ignores bits which are 0
-#define GPIO_CLR *(gpio+10) // clears bits which are 1 ignores bits which are 0
-
-#define GET_GPIO(g) (*(gpio+13)&(1<<g)) // 0 if LOW, (1<<g) if HIGH
-
-#define GPIO_PULL *(gpio+37) // Pull up/pull down
-#define GPIO_PULLCLK0 *(gpio+38) // Pull up/pull down clock
 
 #define MAX_USABLE_GPIO_LINES 34
 #define SDA_PIN 2
 #define SCL_PIN 3
 #define ALT_FUNC 0
 
-int checkConfig(int gpioLineNumber, struct CHIP_CONFIG* config){
+#define BLOCK_SIZE (4*1024)
+
+// GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y)
+#define INP_GPIO(gpio,g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
+#define SET_GPIO_ALT(gpio,g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
+
+int checkConfig(struct CHIP_CONFIG* config, struct gpiod_line **gpioLines, int gpioLineNumber){
     int rtnVal = 0;
-    if (config->isSetup != 1){
+    
+    if(gpioLines == NULL){
+        ulog(ERROR,"gpioLines cannot be NULL.");
+        rtnVal = -1;
+    }
+    if (config != NULL && config->isSetup != 1){
         ulog(ERROR,"GPIO is not setup.");
         rtnVal = -1;
     }
-    if( gpioLineNumber >= config->numLinesInUse){
+    if( gpioLineNumber < 0 || gpioLineNumber >= config->numLinesInUse){
         ulog(ERROR,"Pin Number: %i is out of range of configured Pins",gpioLineNumber);
         rtnVal = -1;
     }
@@ -47,52 +39,76 @@ int checkConfig(int gpioLineNumber, struct CHIP_CONFIG* config){
 }
 
 /* Sets up GPIO to be used */
-int setupGPIO(struct gpiod_chip** chip, char* chipname, struct gpiod_line** gpioLines, \
-                char* consumer,int numGPIOLines, struct CHIP_CONFIG* config){
+int setupGPIO(struct CHIP_CONFIG* config, struct gpiod_chip** chip, char* chipname, struct gpiod_line** gpioLines, \
+                char* consumer, int numGPIOLines){
     int err = 0;
-    if( config->isSetup == 1){
-        ulog(ERROR,"GPIO is already setup");
+    
+    if(chip == NULL ){
+        ulog(ERROR,"Chip cannot be NULL");
         err = -1;
-    } else {
-        *chip = gpiod_chip_open_by_name(chipname);
-        if (*chip == NULL){
-            ulog(ERROR,"Unable to get chip by name: %s",chipname);
-            return -1;
-        }
-        if(numGPIOLines > MAX_USABLE_GPIO_LINES && numGPIOLines < gpiod_chip_num_lines(*chip)){
-            ulog(ERROR,"Invalid Line Count Requested for Chip. Max for Chip: %i",MAX_USABLE_GPIO_LINES);
+    }
+    if(chipname == NULL){
+        ulog(ERROR,"Chipname cannot be NULL");
+        err = -1;
+    }
+    if(gpioLines == NULL){
+        ulog(ERROR,"gpioLines cannot be NULL");
+        err = -1;
+    }
+    if(consumer == NULL){
+        ulog(ERROR,"Consumer cannot be NULL");
+        err = -1;
+    }
+    if(config == NULL){
+        ulog(ERROR,"Config cannot be NULL");
+        err = -1;
+    }
+    
+    if(err != -1){
+        if(config->isSetup == 1 ){
+            ulog(ERROR,"GPIO is already setup");
             err = -1;
-        }
-        if(numGPIOLines >= gpiod_chip_num_lines(*chip)){
-            ulog(ERROR,"Too Many Lines Requested for Chip. Max: %i",gpiod_chip_num_lines(*chip));
-            err = -1;
-        }
+        } else {
+            *chip = gpiod_chip_open_by_name(chipname);
+            if (*chip == NULL){
+                ulog(ERROR,"Unable to get chip by name: %s",chipname);
+                return -1;
+            }
+            if(numGPIOLines > MAX_USABLE_GPIO_LINES && numGPIOLines < gpiod_chip_num_lines(*chip)){
+                ulog(ERROR,"Invalid Line Count Requested for Chip. Max for Chip: %i",MAX_USABLE_GPIO_LINES);
+                return -1;
+            }
+            if(numGPIOLines >= gpiod_chip_num_lines(*chip) || numGPIOLines < 0){
+                ulog(ERROR,"Invalid Number of Lines Requested for Chip. Max: %i",gpiod_chip_num_lines(*chip));
+                return -1;
+            }
 
-        for(int i=0; i < numGPIOLines && err == 0; i++){
-            gpioLines[i] = gpiod_chip_get_line(*chip, i);
-            if(gpioLines[i] == NULL){
-                ulog(ERROR,"Unable to get line: %i",i);
-                err = -1;
-            } else {
-                err = gpiod_line_request_output(gpioLines[i], consumer, 0);
-                if(err){
-                    ulog(ERROR,"Error initially requesting line for OUTPUT");
+            for(int i=0; i < numGPIOLines && err == 0; i++){
+                gpioLines[i] = gpiod_chip_get_line(*chip, i);
+                if(gpioLines[i] == NULL){
+                    ulog(ERROR,"Unable to get line: %i",i);
+                    err = -1;
+                } else {
+                    err = gpiod_line_request_output(gpioLines[i], consumer, 0);
+                    if(err){
+                        ulog(ERROR,"Error initially requesting line for OUTPUT");
+                    }
                 }
             }
-        }
-        if(err != -1){
-            config->isSetup = 1;
-            config->numLinesInUse = numGPIOLines;
+            if(err != -1){
+                config->isSetup = 1;
+                config->numLinesInUse = numGPIOLines;
+            }
         }
     }
     return err;
 }
 
 /* Set the GPIO Pin mode to be INPUT or OUTPUT */
-int setPinModeGPIO(struct gpiod_line **gpioLines, int gpioLineNumber,int pinMode, struct CHIP_CONFIG* config){
+int setPinModeGPIO(struct CHIP_CONFIG* config, struct gpiod_line **gpioLines, int gpioLineNumber, int pinMode){
     int err = 0;
     
-    if(checkConfig(gpioLineNumber, config)){
+    if(checkConfig(config,gpioLines,gpioLineNumber)){
         return -1;
     }
 
@@ -116,10 +132,10 @@ int setPinModeGPIO(struct gpiod_line **gpioLines, int gpioLineNumber,int pinMode
 }
 
 /* Read from a specified GPIO Pin */
-int readGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,struct CHIP_CONFIG* config){
+int readGPIO(struct CHIP_CONFIG* config, struct gpiod_line **gpioLines, int gpioLineNumber){
     int val = 0;
-    
-    if(checkConfig(gpioLineNumber, config)){
+ 
+    if(checkConfig(config,gpioLines,gpioLineNumber)){
         return -1;
     }
 
@@ -136,10 +152,14 @@ int readGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,struct CHIP_CONFIG
 }
 
 /* Write a value to a specified GPIO Pin */
-int writeGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,int value, struct CHIP_CONFIG* config){
+int writeGPIO(struct CHIP_CONFIG* config, struct gpiod_line **gpioLines,int gpioLineNumber,int value){
     int err = 0;
 
-    if(checkConfig(gpioLineNumber, config)){
+    if(checkConfig(config,gpioLines,gpioLineNumber)){
+        return -1;
+    }
+    if(value != 0 && value != 1){
+        ulog(ERROR,"Invalid value %i for line: %i", value,gpioLineNumber);
         return -1;
     }
 
@@ -156,7 +176,7 @@ int writeGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,int value, struct
 }
 
 /* Release the chip and GPIO lines */
-void cleanupGPIO(struct gpiod_chip *chip,struct gpiod_line **gpioLines, int numGPIOLines, struct CHIP_CONFIG* config){
+void cleanupGPIO(struct CHIP_CONFIG* config, struct gpiod_chip *chip, struct gpiod_line **gpioLines, int numGPIOLines){
     if(config->isSetup){
         config->isSetup = 0;
         // Releasing the gpioLines may not be needed since I think it's handled by

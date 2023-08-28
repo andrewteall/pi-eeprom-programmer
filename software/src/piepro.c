@@ -47,17 +47,17 @@ const int EEPROM_WRITE_CYCLE_USEC[] = 	{
 
 /* Local function wrapper to writeGPIO  */
 void setPinLevel(struct GPIO_CHIP* gpioChip, int pin, int level){
-	writeGPIO(gpioChip->gpioLines,pin, level,&gpioChip->config);
+	writeGPIO(&gpioChip->config, gpioChip->gpioLines, pin, level);
 }
 
 /* Local function wrapper to readGPIO  */
 int getPinLevel(struct GPIO_CHIP* gpioChip, int pin){
-	return readGPIO(gpioChip->gpioLines,pin,&gpioChip->config);
+	return readGPIO(&gpioChip->config, gpioChip->gpioLines, pin);
 }
 
 /* Local function wrapper to setPinModeGPIO  */
 void setPinMode(struct GPIO_CHIP* gpioChip, int pin, int mode){
-	setPinModeGPIO(gpioChip->gpioLines,pin, mode,&gpioChip->config );
+	setPinModeGPIO(&gpioChip->config, gpioChip->gpioLines, pin, mode);
 }
 
 /* Local function wrapper to readByteI2C  */
@@ -108,8 +108,8 @@ int initHardware(struct EEPROM *eeprom, struct GPIO_CHIP* gpioChip, struct OPTIO
 	gpioChip->chipname = sOptions->chipname;
 	gpioChip->numGPIOLines = sOptions->numGPIOLines;
 
-	if(setupGPIO(&gpioChip->chip,gpioChip->chipname,gpioChip->gpioLines,sOptions->consumer, \
-					gpioChip->numGPIOLines,&gpioChip->config)== -1){
+	if(setupGPIO(&gpioChip->config, &gpioChip->chip, gpioChip->chipname, gpioChip->gpioLines, sOptions->consumer, \
+					gpioChip->numGPIOLines)== -1){
 		ulog(ERROR, "Failed to setup GPIO");
 		return -1;
 	}
@@ -555,7 +555,7 @@ void printEEPROMContents(struct GPIO_CHIP* gpioChip, struct EEPROM* eeprom, stru
 
 /* Free and release hardware */
 void cleanupHardware(struct GPIO_CHIP* gpioChip, struct EEPROM* eeprom){
-	cleanupGPIO(gpioChip->chip,gpioChip->gpioLines,gpioChip->numGPIOLines,&gpioChip->config);
+	cleanupGPIO(&gpioChip->config, gpioChip->chip, gpioChip->gpioLines, gpioChip->numGPIOLines);
 	cleanupI2C(eeprom->fd);
 }
 
