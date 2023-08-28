@@ -23,12 +23,12 @@
     /**
      * @brief Setups Raspberry Pi GPIO Pins.
      *        Must be called before any GPIO is used.
+     * @param *config Pointer to the chip configuration to be used
      * @param *chip A pointer to a gpiod_chip struct for the chip to be opened.
      * @param *chipname String name of the chip whose GPIO is to be used.
      * @param **gpioLines A pointer to an array of gpiod_lines to be init.
      * @param *consumer String name of the consumer.
      * @param numGPIOLines Number of lines used to be setup
-     * @param *config Pointer to the chip configuration to be used
      * @return int 0 if successful -1 if any error occurs.
      */
     int setupGPIO(struct CHIP_CONFIG* config, struct gpiod_chip** chip, char* chipname, struct gpiod_line** gpioLines, \
