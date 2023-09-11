@@ -13,14 +13,14 @@ int main(int argc, char *argv[]){
         /************************* Init Program ******************************/
         FILE *romFile;
         struct EEPROM eeprom;
-        struct GPIO_CHIP gpioChip;
+        struct GPIO_CONFIG gpioConfig;
         struct OPTIONS sOptions;
 		
         if(parseCommandLineOptions(&sOptions,argc,argv)){
             return 1;
         }
         
-        if(initHardware(&eeprom, &gpioChip, &sOptions)){
+        if(initHardware(&eeprom, &gpioConfig, &sOptions)){
             return 1;
         }
         /*********************************************************************/
@@ -35,27 +35,27 @@ int main(int argc, char *argv[]){
                     return 1;
                 }
                 if(sOptions.action == WRITE_FILE_TO_ROM){
-                    error = writeFileToEEPROM(&gpioChip, &eeprom,romFile, &sOptions);
+                    error = writeFileToEEPROM(&gpioConfig, &eeprom, romFile, &sOptions);
                 } else {
-                    error = compareFileToEEPROM(&gpioChip, &eeprom,romFile, &sOptions);
+                    error = compareFileToEEPROM(&gpioConfig, &eeprom, romFile, &sOptions);
                 }
                 fclose(romFile);
                 break;
             case DUMP_ROM:
-                printEEPROMContents(&gpioChip, &eeprom,&sOptions);
+                printEEPROMContents(&gpioConfig, &eeprom, &sOptions);
                 break;
             case WRITE_SINGLE_BYTE_TO_ROM:
-                error = writeByteToAddress(&gpioChip, &eeprom,sOptions.addressParam,sOptions.dataParam,&sOptions,NULL);
+                error = writeByteToAddress(&gpioConfig, &eeprom, sOptions.addressParam, sOptions.dataParam);
                 break;
             case READ_SINGLE_BYTE_FROM_ROM:
-                error = readByteFromAddress(&gpioChip,&eeprom,sOptions.addressParam);
+                error = readByteFromAddress(&gpioConfig,&eeprom,sOptions.addressParam);
                 if(error != -1){
-                    printf("0x%2x\n", error);
+                    printf("0x%02x\n", error);
                 }
                 break;
         }
         /*********************************************************************/
-        cleanupHardware(&gpioChip, &eeprom);
+        cleanupHardware(&gpioConfig, &eeprom);
     }
     if(error == -1){
         error = 1;

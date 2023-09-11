@@ -71,7 +71,7 @@ int binStr2num(char *binStr){
 	return num;
 }
 
-/* Converts a number string to a number.*/
+/* Converts a number string to a number */
 int str2num(char *numStr){
 	int num = 0;
 	int numSize = 0;
@@ -152,4 +152,13 @@ long expo(int base, int power){
 		}
 	}
     return result;
+}
+
+/* @brief Rounds a float up to the nearest whole number */
+int roundUp(float floatNumber){
+	int intNumber = (int)floatNumber;
+	if(intNumber < floatNumber){
+		intNumber++;
+	}
+	return intNumber;
 }

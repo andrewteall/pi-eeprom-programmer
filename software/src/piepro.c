@@ -77,6 +77,24 @@ void setPinMode(struct GPIO_CONFIG* gpioConfig, int pin, int mode){
 	setPinModeGPIO(&gpioConfig->gpioChip, pin, mode);
 }
 
+/* Set Address eeprom to value to read from or write to */
+void setAddressPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, unsigned int addressToSet){
+	for (char pin = 0;pin<eeprom->maxAddressLength;pin++){
+		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
+			setPinLevel(gpioConfig,eeprom->addressPins[(int)pin],(addressToSet & 1));
+			addressToSet >>= 1;
+		}
+	}
+}
+
+/* Set Data eeprom to value to write */
+void setDataPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,char dataToSet){
+	for (char pin = 0;pin<eeprom->maxDataLength;pin++){
+		setPinLevel(gpioConfig,eeprom->dataPins[(int)pin],(dataToSet & 1));
+		dataToSet >>= 1;
+	}
+}
+
 /* Poll device or wait until write cycle finishes */
 int finishWriteCycle(struct EEPROM* eeprom){
 	// Finish Write Cycle
@@ -97,73 +115,112 @@ int finishWriteCycle(struct EEPROM* eeprom){
 	return 0;
 }
 
+/* Writes bytes to an EEPROM via I2C */
+int setBytesParallel(struct GPIO_CONFIG* gpioConfig,struct EEPROM* eeprom,int addressToWrite,char* data,int numBytesToWrite){
+	for(int j=0;j < numBytesToWrite; j++){
+		// set the address
+		setAddressPins(gpioConfig, eeprom, addressToWrite);
+		// disable output from the chip
+		setPinLevel(gpioConfig,eeprom->outputEnablePin,HIGH);
+		// set the rpi to output on it's gpio data lines
+		for(int i=0;i<eeprom->maxDataLength;i++){
+			setPinMode(gpioConfig,eeprom->dataPins[i], OUTPUT);
+		}
+		// Set the data eeprom to the data to be written
+		setDataPins(gpioConfig, eeprom, data[addressToWrite+j]);
+		
+		// perform the write
+		setPinLevel(gpioConfig,eeprom->writeEnablePin,LOW);
+		usleep(1);
+		setPinLevel(gpioConfig,eeprom->writeEnablePin,HIGH);
+		finishWriteCycle(eeprom);
+	}
+	return 0;
+}
+
+/* Write a single byte to an EEPROM via I2C */
+int setByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char data){
+	return setBytesParallel(gpioConfig, eeprom, addressToWrite, &data, 1);
+}
+
+/* Reads bytes from an EEPROM via Parallel GPIO */
+int* getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead, int numBytesToRead,int* buf){
+	for(int j=0; j<numBytesToRead;j++){
+		int byteVal = 0;
+		// set the address
+		setAddressPins(gpioConfig, eeprom, addressToRead);
+		// enable output from the chip
+		setPinLevel(gpioConfig, eeprom->outputEnablePin, LOW);
+		// set the rpi to input on it's gpio data lines
+		for(int i=0;i<eeprom->maxDataLength;i++){
+			setPinMode(gpioConfig, eeprom->dataPins[i], INPUT);
+		}
+		// read the eeprom and store to string
+		for(int i=eeprom->maxDataLength-1;i>=0;i--){
+			byteVal <<= 1;
+			byteVal |= (getPinLevel(gpioConfig,eeprom->dataPins[i]) & 1);		
+		}
+		buf[j] = byteVal;
+		addressToRead++;
+	}
+	return buf;
+}
+
+/* Read a single byte from and EEPROM via Parallel GPIO */
+int getByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int address){
+	int buf[eeprom->addressSize + 1];
+	getBytesParallel(gpioConfig, eeprom, address,1, buf);
+	return *buf;
+}
+
 /* Populates the array for the I2C format */
-int buildI2CDataArray(struct EEPROM* eeprom, int addressToRead, int numBytesToRead, int* buf){
+int buildI2CDataArray(struct EEPROM* eeprom, int address, int* buf){
 	int i = 0;
 
 	// Set the Address
     while(i < eeprom->addressSize){
-        buf[i++] = addressToRead & 0xFF;
-        addressToRead >>= (i*8);	// i is 1 at first so we shift 8 bits each pass for each byte of the address
+        buf[i++] = address & 0xFF;
+        address >>= (i*8);	// i is 1 at first so we shift 8 bits each pass for each byte of the address
     }
-    if(addressToRead != 0){
-        ulog(ERROR,"Address out of Range for EEPROM: %i", addressToRead);
+    if(address != 0){
+        ulog(ERROR,"Address out of Range for EEPROM: %i", address);
         return -1;
-    }
-
-    // Set the Data
-    while((i - eeprom->addressSize) < numBytesToRead){
-        buf[i] = buf[i - eeprom->addressSize];
-        ++i;
     }
 
 	return i;
 }
 
-/* Local function wrapper to readByteI2C  */
+/* Reads bytes from an EEPROM via I2C */
 int* getBytesI2C(struct EEPROM* eeprom, int addressToRead, int numBytesToRead, int* buf){
-    int bufSize = buildI2CDataArray(eeprom,addressToRead,numBytesToRead, buf);
+    int bufSize = buildI2CDataArray(eeprom,addressToRead, buf);
 	return readI2C(eeprom->fd,buf,bufSize);
 }
 
-/* Read a single byte from and EEPROM  */
+/* Read a single byte from and EEPROM via I2C */
 int getByteI2C(struct EEPROM* eeprom, int address){
 	int buf[eeprom->addressSize + 1];
 	getBytesI2C(eeprom,address,1, buf);
 	return *buf;
 }
 
-/* Local function wrapper to writeI2C  */
+/* Writes bytes to an EEPROM via I2C */
 int setBytesI2C(struct EEPROM* eeprom, int addressToWrite, char* data, int numBytesToWrite){
 	char buf[eeprom->addressSize + numBytesToWrite];
 	
-	int bufSize = buildI2CDataArray(eeprom,addressToWrite,numBytesToWrite, (int*)buf);
+	int bufSize = buildI2CDataArray(eeprom,addressToWrite, (int*)buf);
+	// Set the Data
+    while((bufSize - eeprom->addressSize) < numBytesToWrite){
+        buf[bufSize] = data[bufSize - eeprom->addressSize];
+        ++bufSize;
+    }
 	int numBytesWritten = writeI2C(eeprom->fd,buf,bufSize);
 	finishWriteCycle(eeprom);
 	return numBytesWritten;
 }
 
-/* Write a single byte from and EEPROM  */
+/* Write a single byte to an EEPROM via I2C */
 int setByteI2C(struct EEPROM* eeprom, int addressToWrite, char data){
 	return setBytesI2C(eeprom, addressToWrite, &data, 1);
-}
-
-/* Set Address eeprom to value to read from or write to */
-void setAddressPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,unsigned int addressToSet){
-	for (char pin = 0;pin<eeprom->maxAddressLength;pin++){
-		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
-			setPinLevel(gpioConfig,eeprom->addressPins[(int)pin],(addressToSet & 1));
-			addressToSet >>= 1;
-		}
-	}
-}
-
-/* Set Data eeprom to value to write */
-void setDataPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,char dataToSet){
-	for (char pin = 0;pin<eeprom->maxDataLength;pin++){
-		setPinLevel(gpioConfig,eeprom->dataPins[(int)pin],(dataToSet & 1));
-		dataToSet >>= 1;
-	}
 }
 
 /* Fast forward to start value when reading file */
@@ -179,6 +236,7 @@ void seekFileToStartValue(FILE *romFile, struct OPTIONS* sOptions){
 /******************************************************************************
 *******************************************************************************
 ******************************************************************************/
+/* Sets all parameters for the EEPROM to be used */
 void setEEPROMParameters(struct OPTIONS* sOptions, struct EEPROM* eeprom){
 	eeprom->model = sOptions->eepromModel;
 	eeprom->i2cId = sOptions->i2cId;
@@ -210,6 +268,7 @@ void setEEPROMParameters(struct OPTIONS* sOptions, struct EEPROM* eeprom){
 
 }
 
+/* Sets all parameters to use GPIO */
 void setGPIOConfigParameters(struct OPTIONS* sOptions, struct GPIO_CONFIG* gpioConfig){
 	gpioConfig->gpioChip.chipname = sOptions->chipname;
 	gpioConfig->gpioChip.numGPIOLines = sOptions->numGPIOLines;
@@ -339,19 +398,7 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,un
 		setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
 		byteVal = getByteI2C(eeprom,addressToRead);
 	} else {
-		// set the address
-		setAddressPins(gpioConfig, eeprom,addressToRead);
-		// enable output from the chip
-		setPinLevel(gpioConfig,eeprom->outputEnablePin,LOW);
-		// set the rpi to input on it's gpio data lines
-		for(int i=0;i<eeprom->maxDataLength;i++){
-			setPinMode(gpioConfig,eeprom->dataPins[i],INPUT);
-		}
-		// read the eeprom and store to string
-		for(int i=eeprom->maxDataLength-1;i>=0;i--){
-			byteVal <<= 1;
-			byteVal |= (getPinLevel(gpioConfig,eeprom->dataPins[i]) & 1);		
-		}
+		byteVal = getByteParallel(gpioConfig,eeprom,addressToRead);
 	}
 	// return the number
 	return byteVal;
@@ -378,22 +425,23 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 		}
 	} else {
 		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom,addressToWrite)){
-			// set the address
-			setAddressPins(gpioConfig, eeprom, addressToWrite);
-			// disable output from the chip
-			setPinLevel(gpioConfig,eeprom->outputEnablePin,HIGH);
-			// set the rpi to output on it's gpio data lines
-			for(int i=0;i<eeprom->maxDataLength;i++){
-					setPinMode(gpioConfig,eeprom->dataPins[i], OUTPUT);
-			}
-			// Set the data eeprom to the data to be written
-			setDataPins(gpioConfig, eeprom,dataToWrite);
+			// // set the address
+			// setAddressPins(gpioConfig, eeprom, addressToWrite);
+			// // disable output from the chip
+			// setPinLevel(gpioConfig,eeprom->outputEnablePin,HIGH);
+			// // set the rpi to output on it's gpio data lines
+			// for(int i=0;i<eeprom->maxDataLength;i++){
+			// 		setPinMode(gpioConfig,eeprom->dataPins[i], OUTPUT);
+			// }
+			// // Set the data eeprom to the data to be written
+			// setDataPins(gpioConfig, eeprom,dataToWrite);
 			
-			// perform the write
-			setPinLevel(gpioConfig,eeprom->writeEnablePin,LOW);
-			usleep(1);
-			setPinLevel(gpioConfig,eeprom->writeEnablePin,HIGH);
-			finishWriteCycle(eeprom);
+			// // perform the write
+			// setPinLevel(gpioConfig,eeprom->writeEnablePin,LOW);
+			// usleep(1);
+			// setPinLevel(gpioConfig,eeprom->writeEnablePin,HIGH);
+			// finishWriteCycle(eeprom);
+			setByteParallel(gpioConfig,eeprom,addressToWrite,dataToWrite);
 			if (eeprom->validateWrite == 1){
 				if (dataToWrite != readByteFromAddress(gpioConfig, eeprom,addressToWrite)){
 					ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
