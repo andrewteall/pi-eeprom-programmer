@@ -5,14 +5,12 @@
     /**
      * @brief Levels used by GPIO.
      */
-    #define LOW 0
-    #define HIGH 1
+    enum LEVEL {LOW=0, HIGH};
 
     /**
      * @brief Pin Modes used by GPIO.
      */
-    #define INPUT 0
-    #define OUTPUT 1
+    enum PIN_MODE {INPUT=0, OUTPUT};
 
     struct GPIO_CHIP{
         // GPIO
