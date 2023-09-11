@@ -9,15 +9,34 @@
 #include "utils.h"
 
 #define MAX_USABLE_GPIO_LINES 34
-#define SDA_PIN 2
-#define SCL_PIN 3
-#define ALT_FUNC 0
+#define SDA1_PIN 2
+#define SCL1_PIN 3
+#define BLOCK_SIZE 4096
 
-#define BLOCK_SIZE (4*1024)
+enum ALT_MODE {ALT0=0,ALT1,ALT2,ALT3,ALT4,ALT5};
 
 // GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y)
 #define INP_GPIO(gpio,g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
 #define SET_GPIO_ALT(gpio,g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
+
+void setPinAltModeGPIO(volatile unsigned int* gpio, int pin, enum ALT_MODE altMode){
+    // gpio += (pin/10);
+    // *gpio &= ~(7<<(((pin)%10)*3));
+    // switch (altMode){
+    // case 0: case 1: case 2: case 3: 
+    //     altMode += 4;
+    //     break;
+    // case 4:
+    //     altMode = 3;
+    //     break;
+    // default:
+    //     altMode = 2;
+    // }
+    // altMode <<= (pin%10)*3;
+    // *gpio |= altMode;
+    INP_GPIO(gpio,pin);
+    SET_GPIO_ALT(gpio,pin,altMode);
+}
 
 int checkConfig(struct GPIO_CHIP* gpioChip, int gpioLineNumber){
     int rtnVal = 0;
@@ -189,16 +208,14 @@ void cleanupGPIO(struct GPIO_CHIP* gpioChip){
 /*****************************************************************************/
 /*****************************************************************************/
 
-/* Sets up an I2C device to be used via the built in I2C pins */
-int setupI2C(char I2CId){
+volatile unsigned int* mapGPIOMemory(){
     int  mem_fd;
     void *gpio_map;
-    volatile unsigned *gpio;
-    
+
     /* open /dev/gpiomem */
     if ((mem_fd = open("/dev/gpiomem", O_RDWR|O_SYNC) ) < 0) {
         ulog(ERROR,"Error opening /dev/gpiomem");
-        return -1;
+        return (volatile unsigned int*)-1;
     }
 
     /* mmap GPIO */
@@ -215,17 +232,22 @@ int setupI2C(char I2CId){
 
     if (gpio_map == MAP_FAILED) {
         ulog(ERROR,"mmap error");//errno also set!
+        return (volatile unsigned int*)-1;
+    }
+    return (volatile unsigned int*)gpio_map;
+}
+
+
+/* Sets up an I2C device to be used via the built in I2C pins */
+int setupI2C(char I2CId){
+    // Always use volatile pointer!
+    volatile unsigned int* gpio = mapGPIOMemory();
+    if(gpio == (volatile unsigned int*)-1){
         return -1;
     }
-
-    // Always use volatile pointer!
-    gpio = (volatile unsigned *)gpio_map;
     
-    INP_GPIO(gpio, SDA_PIN);  // Always use INP_GPIO(x) before using SET_GPIO_ALT(x,y)
-    SET_GPIO_ALT(gpio, SDA_PIN, ALT_FUNC);
-
-    INP_GPIO(gpio, SCL_PIN);  // Always use INP_GPIO(x) before using SET_GPIO_ALT(x,y)
-    SET_GPIO_ALT(gpio, SCL_PIN, ALT_FUNC);
+    setPinAltModeGPIO(gpio, SDA1_PIN, ALT0);
+    setPinAltModeGPIO(gpio, SCL1_PIN, ALT0);
     
     ulog(INFO,"Setting up I2C Device with ID: 0x%02x",I2CId);
     int fd = open("/dev/i2c-1", O_RDWR );
