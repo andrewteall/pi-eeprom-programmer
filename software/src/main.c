@@ -20,7 +20,7 @@ int main(int argc, char *argv[]){
             return 1;
         }
         
-        if(initHardware(&eeprom, &gpioConfig, &sOptions)){
+        if(initHardware(&sOptions, &eeprom, &gpioConfig)){
             return 1;
         }
         /*********************************************************************/
@@ -35,14 +35,14 @@ int main(int argc, char *argv[]){
                     return 1;
                 }
                 if(sOptions.action == WRITE_FILE_TO_ROM){
-                    error = writeFileToEEPROM(&gpioConfig, &eeprom, romFile, &sOptions);
+                    error = writeFileToEEPROM(&gpioConfig, &eeprom, romFile);
                 } else {
-                    error = compareFileToEEPROM(&gpioConfig, &eeprom, romFile, &sOptions);
+                    error = compareFileToEEPROM(&gpioConfig, &eeprom, romFile);
                 }
                 fclose(romFile);
                 break;
             case DUMP_ROM:
-                printEEPROMContents(&gpioConfig, &eeprom, &sOptions);
+                printEEPROMContents(&gpioConfig, &eeprom, sOptions.dumpFormat);
                 break;
             case WRITE_SINGLE_BYTE_TO_ROM:
                 error = writeByteToAddress(&gpioConfig, &eeprom, sOptions.addressParam, sOptions.dataParam);

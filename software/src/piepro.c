@@ -16,7 +16,7 @@ const char* EEPROM_MODEL_STRINGS[] = 	{
 										"at24c32","at24c64","at24c128","at24c256","at24c512"
 										};
 
-const int EEPROM_MODEL_SIZES[] = 	{
+const int EEPROM_MODEL_SIZE[] = 	{
 									2048,2048,
 									2048,8192,32768,
 									128,256,512,1024,2048,
@@ -224,31 +224,50 @@ int setByteI2C(struct EEPROM* eeprom, int addressToWrite, char data){
 }
 
 /* Fast forward to start value when reading file */
-void seekFileToStartValue(FILE *romFile, struct OPTIONS* sOptions){
+void seekFileToStartValue(FILE *romFile, int startValue){
 	fseek(romFile, 0L, SEEK_END);
 	unsigned long size = ftell(romFile);
 	rewind(romFile);
-	if(sOptions->startValue < sOptions->limit && size > sOptions->startValue){
-		fseek(romFile,sOptions->startValue,SEEK_SET);
+	if(size > startValue){
+		fseek(romFile,startValue,SEEK_SET);
 	}
 }
 
-/******************************************************************************
-*******************************************************************************
-******************************************************************************/
+/* Get the next set of Data from a text file formatted rom */
+int getNextFromTextFile(struct EEPROM *eeprom, FILE *romFile){
+	int c;
+	int addressLength = 0;
+	char textFileAddress[(sizeof(int)*8)+1];
+	
+	while((c = fgetc(romFile)) != EOF && addressLength != sizeof(int)*8 && c != '\n' && c != ' ' && c != ':'){
+		if(c == '1' || c == '0'){
+			textFileAddress[addressLength++] = c;
+		}
+	}
+	
+	textFileAddress[addressLength++] = 0;
+	if(c == EOF){
+		return -1;
+	} else {
+		return binStr2num(textFileAddress);
+	}
+}
+
 /* Sets all parameters for the EEPROM to be used */
 void setEEPROMParameters(struct OPTIONS* sOptions, struct EEPROM* eeprom){
 	eeprom->model = sOptions->eepromModel;
 	eeprom->i2cId = sOptions->i2cId;
 	eeprom->forceWrite = sOptions->force;
 	eeprom->validateWrite = sOptions->validateWrite;
+	eeprom->startValue = sOptions->startValue;
+	eeprom->fileType = sOptions->fileType;
 
 	eeprom->byteWriteCounter = 0;
 	eeprom->byteReadCounter = 0;
 
-	eeprom->useWriteCyclePolling = 1;
+	eeprom->useWriteCyclePolling = sOptions->useWriteCyclePolling;
 
-	eeprom->size = EEPROM_MODEL_SIZES[sOptions->eepromModel];
+	eeprom->size = EEPROM_MODEL_SIZE[sOptions->eepromModel];
 	eeprom->maxAddressLength = EEPROM_ADDRESS_LENGTH[sOptions->eepromModel];
 	eeprom->maxDataLength = (EEPROM_DATA_LENGTH[sOptions->eepromModel]);
 	eeprom->pageSize = EEPROM_PAGE_SIZE[sOptions->eepromModel];
@@ -258,6 +277,12 @@ void setEEPROMParameters(struct OPTIONS* sOptions, struct EEPROM* eeprom){
 		eeprom->writeCycleTime = EEPROM_ADDRESS_SIZE[sOptions->eepromModel];
 	}else{
     	eeprom->writeCycleTime = sOptions->writeCycleUSec;
+	}
+
+	if( sOptions->limit == -1){
+		eeprom->limit = EEPROM_MODEL_SIZE[sOptions->eepromModel];
+	}else{
+    	eeprom->limit = sOptions->limit;
 	}
 
 	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C256){
@@ -281,8 +306,12 @@ void setGPIOConfigParameters(struct OPTIONS* sOptions, struct GPIO_CONFIG* gpioC
 	gpioConfig->gpioChip.isSetup = 0;
 }
 
+/******************************************************************************
+*******************************************************************************
+******************************************************************************/
+
 /* Initialize Raspberry Pi to perform action on EEPROM */
-int initHardware(struct EEPROM *eeprom, struct GPIO_CONFIG* gpioConfig, struct OPTIONS *sOptions){
+int initHardware(struct OPTIONS *sOptions, struct EEPROM *eeprom, struct GPIO_CONFIG* gpioConfig){
 	setEEPROMParameters(sOptions, eeprom);
 	
 	setGPIOConfigParameters(sOptions, gpioConfig);
@@ -388,13 +417,13 @@ int initHardware(struct EEPROM *eeprom, struct GPIO_CONFIG* gpioConfig, struct O
 }
 
 /* Read byte from specified Address */
-int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,unsigned int addressToRead){
+int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, unsigned int addressToRead){
 	int byteVal = 0;
 	if(addressToRead > eeprom->size){
 		ulog(ERROR,"Address out of range of EEPROM: %i",addressToRead);
 		return -1;
 	}
-	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
+	if (eeprom->type == I2C){
 		setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
 		byteVal = getByteI2C(eeprom,addressToRead);
 	} else {
@@ -407,11 +436,11 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,un
 /* Write specified byte to specified address */
 int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char dataToWrite){
 	int err = 0;
-	if(addressToWrite > eeprom->size){
+	if((unsigned)addressToWrite > eeprom->size){
 		ulog(ERROR,"Address out of range of EEPROM: %i",addressToWrite);
 		return -1;
 	}
-	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
+	if (eeprom->type == I2C){
 		if (eeprom->forceWrite || dataToWrite != getByteI2C(eeprom,addressToWrite)){
 			setPinLevel(gpioConfig,eeprom->writeProtectPin,LOW);
 			if (setByteI2C(eeprom, addressToWrite, dataToWrite) != -1){
@@ -425,22 +454,6 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 		}
 	} else {
 		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom,addressToWrite)){
-			// // set the address
-			// setAddressPins(gpioConfig, eeprom, addressToWrite);
-			// // disable output from the chip
-			// setPinLevel(gpioConfig,eeprom->outputEnablePin,HIGH);
-			// // set the rpi to output on it's gpio data lines
-			// for(int i=0;i<eeprom->maxDataLength;i++){
-			// 		setPinMode(gpioConfig,eeprom->dataPins[i], OUTPUT);
-			// }
-			// // Set the data eeprom to the data to be written
-			// setDataPins(gpioConfig, eeprom,dataToWrite);
-			
-			// // perform the write
-			// setPinLevel(gpioConfig,eeprom->writeEnablePin,LOW);
-			// usleep(1);
-			// setPinLevel(gpioConfig,eeprom->writeEnablePin,HIGH);
-			// finishWriteCycle(eeprom);
 			setByteParallel(gpioConfig,eeprom,addressToWrite,dataToWrite);
 			if (eeprom->validateWrite == 1){
 				if (dataToWrite != readByteFromAddress(gpioConfig, eeprom,addressToWrite)){
@@ -457,210 +470,132 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 }
 
 /* Open and write a text file to EEPROM */
-int writeTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig,struct EEPROM *eeprom, FILE *romFile, struct OPTIONS *sOptions){
-	int counter = 0;
-	
-	char textFileAddress[eeprom->maxAddressLength+1];
-	char textFiledata[eeprom->maxDataLength+1];
-	int c;
+int writeTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom, FILE *romFile){
 	int err = 0;
-	int haveNotReachedSeparator = 1;
-	int addressLength = 0;
-	int dataLength = 0;
-
-	textFileAddress[eeprom->maxAddressLength] = 0;
-	textFiledata[eeprom->maxDataLength] = 0;
-
-	while( ((c = fgetc(romFile)) != EOF ) && counter < sOptions->limit){
-		if (c != '\n'){
-			if ((addressLength < eeprom->maxAddressLength) && (haveNotReachedSeparator) ){
-				if(c == '1' || c == '0'){
-					textFileAddress[addressLength++] = c;
-				} else if (c == ' '){
-					haveNotReachedSeparator = 0;
-				}
-			} else {
-				if (dataLength < eeprom->maxDataLength){
-					if(c == '1' || c == '0'){
-						textFiledata[dataLength++] = c;
-					}
-				}
-			}
-		} else {
-			if (addressLength < eeprom->maxAddressLength){
-				for(int i = addressLength-1,j=eeprom->maxAddressLength-1;i>=0;i--,j--){
-					textFileAddress[j]= textFileAddress[i];
-					textFileAddress[i] = '0';
-				}
-			}
-			if (binStr2num(textFileAddress) >= sOptions->startValue){
-				err = writeByteToAddress( gpioConfig, \
-							eeprom,binStr2num(textFileAddress),binStr2num(textFiledata)) || err;
-			}
-			addressLength = 0;
-			dataLength = 0;
-			haveNotReachedSeparator = 1;
-			counter++;
+	int address = 0;
+	int data = 0;
+	while(address < eeprom->limit && address >= eeprom->startValue && address != -1 && data != -1){
+		address = getNextFromTextFile(eeprom, romFile);
+		data = getNextFromTextFile(eeprom, romFile);
+		if(address != -1 && data != -1){
+			err |= writeByteToAddress(gpioConfig, eeprom, address, data);
 		}
 	}
 	ulog(INFO,"Wrote %i bytes",eeprom->byteWriteCounter);
 	return err;
 }
 
-/* Compare a text file to EEPRom */
-int compareTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom,FILE *romFile, struct OPTIONS *sOptions){
-	int err = 0;
-	int dataToCompare = 0;
-	int addressToCompare = 0;
+/* Compare a text file to EEPROM */
+int compareTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom, FILE *romFile){
+	int address = 0;
+	int data = 0;
 	int bytesNotMatched = 0;
-
-	int counter = 0;
-	
-	char textFileAddress[eeprom->maxAddressLength+1];
-	char textFiledata[eeprom->maxDataLength+1];
-	int c;
-	int haveNotReachedSeparator = 1;
-	int addressLength = 0;
-	int dataLength = 0;
-
-	textFileAddress[eeprom->maxAddressLength] = 0;
-	textFiledata[eeprom->maxDataLength] = 0;
-
-	while( ((c = fgetc(romFile)) != EOF ) && (counter < sOptions->limit)){
-		if (c != '\n'){
-			if ((addressLength < eeprom->maxAddressLength) && (haveNotReachedSeparator) ){
-				if(c == '1' || c == '0'){
-					textFileAddress[addressLength++] = c;
-				} else if (c == ' '){
-					haveNotReachedSeparator = 0;
-				}
-			} else {
-				if (dataLength < eeprom->maxDataLength){
-					if(c == '1' || c == '0'){
-						textFiledata[dataLength++] = c;
-					}
-				}
+	while(address < eeprom->limit && address >= eeprom->startValue && address != -1 && data != -1){
+		address = getNextFromTextFile(eeprom, romFile);
+		data = getNextFromTextFile(eeprom, romFile);
+		if(address != -1 && data != -1){
+			int byte = readByteFromAddress(gpioConfig, eeprom, address);
+			if (byte != data){
+				ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i",address,byte,data);
+				bytesNotMatched++;
 			}
-		} else {
-			if (addressLength < eeprom->maxAddressLength){
-				for(int i = addressLength-1,j=eeprom->maxAddressLength-1;i>=0;i--,j--){
-					textFileAddress[j]= textFileAddress[i];
-					textFileAddress[i] = '0';
-
-				}
-			}
-			addressToCompare  = binStr2num(textFileAddress);
-			dataToCompare = binStr2num(textFiledata);
-			if (addressToCompare >= sOptions->startValue){
-				if (readByteFromAddress(gpioConfig, eeprom,addressToCompare) != dataToCompare){
-					ulog(DEBUG,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
-						addressToCompare,readByteFromAddress(gpioConfig, eeprom,addressToCompare),dataToCompare);
-					bytesNotMatched++;
-					err = 1;
-				}
-			}
-			addressLength = 0;
-			dataLength = 0;
-			haveNotReachedSeparator = 1;
-			counter++;
 		}
 	}
-	if ( bytesNotMatched == 0) {
+
+	if(bytesNotMatched == 0) {
 		ulog(INFO,"All bytes match.");
 	} else {
 		ulog(INFO,"%i bytes do not match",bytesNotMatched);
 	}
-	return err;
+	return bytesNotMatched;
 }
 
 /* Open and write a binary file to the EEPROM */
-int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig,struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions){
+int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, FILE *romFile){
 	char dataToWrite;
-	int addressToWrite = 0;
+	int addressToWrite = eeprom->startValue;
 	int err = 0;
 
-	seekFileToStartValue(romFile,sOptions);
+	seekFileToStartValue(romFile,eeprom->startValue);
 	
-	while(((dataToWrite = fgetc(romFile)) != EOF) && addressToWrite < sOptions->limit) {
-		err = writeByteToAddress(gpioConfig, eeprom,addressToWrite++,dataToWrite) || err;
+	while((addressToWrite < eeprom->limit && (dataToWrite = fgetc(romFile)) != EOF)) {
+		err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite++, dataToWrite);
 	}
 	ulog(INFO,"Wrote %i bytes",eeprom->byteWriteCounter);
 	return err;
 }
 
-/* Compare a binary file to EEPRom */
-int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions){
-	int err = 0;
+/* Compare a binary file to EEPROM */
+int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, FILE *romFile){
 	char dataToCompare;
-	int addressToCompare = 0;
+	int addressToCompare = eeprom->startValue;
 	int bytesNotMatched = 0;
 
-	seekFileToStartValue(romFile,sOptions);
+	seekFileToStartValue(romFile,eeprom->startValue);
 
-	while(((dataToCompare = fgetc(romFile)) != EOF) && addressToCompare < sOptions->limit) {
-		if (readByteFromAddress(gpioConfig, eeprom,addressToCompare) != dataToCompare){
-			ulog(DEBUG,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
-				addressToCompare,readByteFromAddress(gpioConfig, eeprom,addressToCompare),dataToCompare);
+	while(((dataToCompare = fgetc(romFile)) != EOF) && addressToCompare < eeprom->limit) {
+		char byte = readByteFromAddress(gpioConfig, eeprom,addressToCompare);
+		if (byte != dataToCompare){
+			ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i",addressToCompare,byte,dataToCompare);
 			bytesNotMatched++;
-			err = 1;
 		}
 		addressToCompare++;
 	}
-	if ( bytesNotMatched == 0) {
+	if(bytesNotMatched == 0) {
 		ulog(INFO,"All bytes match.");
 	} else {
-		ulog(INFO,"%i bytes do not match",bytesNotMatched);
+		ulog(INFO,"%i bytes do not match", bytesNotMatched);
 	}
-	return err;
+	return bytesNotMatched;
 }
 
-/* Compare a file to EEPRom */
-int compareFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions){
-	if (sOptions->fileType == TEXT_FILE){
-		return compareTextFileToEEPROM(gpioConfig, eeprom,romFile,sOptions);
+/* Compare a file to EEPROM */
+int compareFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, FILE *romFile){
+	if (eeprom->fileType == TEXT_FILE){
+		return compareTextFileToEEPROM(gpioConfig, eeprom, romFile);
 	} else {
-		return compareBinaryFileToEEPROM(gpioConfig, eeprom,romFile,sOptions);
+		return compareBinaryFileToEEPROM(gpioConfig, eeprom, romFile);
 	}
 }
 
 /* Open and write a file to EEPROM */
-int writeFileToEEPROM(struct GPIO_CONFIG* gpioConfig,struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions){
-	if (sOptions->fileType == TEXT_FILE){
-		return writeTextFileToEEPROM(gpioConfig, eeprom,romFile,sOptions);
+int writeFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, FILE *romFile){
+	if (eeprom->fileType == TEXT_FILE){
+		return writeTextFileToEEPROM(gpioConfig, eeprom, romFile);
 	} else {
-		return writeBinaryFileToEEPROM(gpioConfig, eeprom,romFile,sOptions);
+		return writeBinaryFileToEEPROM(gpioConfig, eeprom, romFile);
 	}
 }
 
-/* Prints the EEPRom's Contents to the specified limit */
-void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, struct OPTIONS *sOptions){
-	if (sOptions->limit == -1 || sOptions->limit > EEPROM_MODEL_SIZES[eeprom->model]){
-		sOptions->limit = EEPROM_MODEL_SIZES[eeprom->model];
+/* Prints the EEPROM's Contents to the specified limit */
+void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int format){
+	if (eeprom->limit == -1 || eeprom->limit > EEPROM_MODEL_SIZE[eeprom->model]){
+		eeprom->limit = EEPROM_MODEL_SIZE[eeprom->model];
 	}
 	
-	switch (sOptions->dumpFormat) {
+	switch (format) {
 	case 0:
-		for (int i=sOptions->startValue;i<sOptions->limit;i++){
+		for (int i=eeprom->startValue;i<eeprom->limit;i++){
 			printf("Address: %i     Data: %i \n",i,readByteFromAddress(gpioConfig, eeprom,i));
 		}
 		break;
 	case 1:	// binary
 		setLoggingLevel(OFF);
-		for (int i=0;i<sOptions->startValue;i++) {
+		for (int i=0;i<eeprom->startValue;i++) {
 			putc(0xFF,stdout);
 		}
-		for (int i=sOptions->startValue;i<sOptions->limit;i++) {
+		for (int i=eeprom->startValue;i<eeprom->limit;i++) {
 			putc(readByteFromAddress(gpioConfig, eeprom,i),stdout);
 		}
 		break;
 	case 2: // text
-		for (int i=sOptions->startValue;i<sOptions->limit;i++) {
+		for (int i=eeprom->startValue;i<eeprom->limit;i++) {
 			char addressBinStr[eeprom->maxAddressLength+2];
 			char dataBinStr[eeprom->maxDataLength+1];
 
 			num2binStr(addressBinStr,i,eeprom->maxAddressLength+1);
 			num2binStr(dataBinStr,readByteFromAddress(gpioConfig, eeprom,i),eeprom->maxDataLength);
-			if ( sOptions->startValue < 0x100 && sOptions->limit < 0x100){
+			if ( eeprom->startValue < 0x100 && eeprom->limit < 0x100){
 				char shortAddressBinStr[9];
 				strncpy(shortAddressBinStr,&addressBinStr[8],8);
 				printf("%s %s \n", shortAddressBinStr,dataBinStr);
@@ -672,16 +607,16 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 
 	case 3: // pretty
 	default:
-		if ((sOptions->startValue % 16) != 0){
-			sOptions->startValue = sOptions->startValue - ((sOptions->startValue % 16));
+		if ((eeprom->startValue % 16) != 0){
+			eeprom->startValue = eeprom->startValue - ((eeprom->startValue % 16));
 		}
 
 		printf("       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
 		printf("Device ===============================================================\n");
-		for (int i=sOptions->startValue;i<sOptions->limit;i++){
+		for (int i=eeprom->startValue;i<eeprom->limit;i++){
 			printf("%04x | ",i);
 			int j=0;
-			while(j<16 && i<sOptions->limit){
+			while(j<16 && i<eeprom->limit){
 				printf("%02x  ",readByteFromAddress(gpioConfig, eeprom,i++));
 				j++;
 			}
@@ -698,6 +633,10 @@ void cleanupHardware(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom){
 	cleanupGPIO(&gpioConfig->gpioChip);
 	cleanupI2C(eeprom->fd);
 }
+
+/******************************************************************************
+*******************************************************************************
+******************************************************************************/
 
 /* Prints help message */
 void printHelp(){
@@ -745,14 +684,12 @@ void setDefaultOptions(struct OPTIONS* sOptions){
     sOptions->fileType = BINARY_FILE;
     sOptions->eepromModel = AT28C16;
     sOptions->writeCycleUSec = -1;
+	sOptions->useWriteCyclePolling = 1;
     sOptions->i2cId = 0x50;
 	sOptions->boardType = RPI4;
 	sOptions->filename = NULL;
-
     sOptions->addressParam = 0;
     sOptions->dataParam = 0;
-
-	
 	sOptions->consumer = consumer;
     sOptions->chipname = chipname;
     sOptions->numGPIOLines = 28;

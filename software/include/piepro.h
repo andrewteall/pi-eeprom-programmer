@@ -49,7 +49,7 @@
     /**
      * @brief Array of EEProm model sizes correlating to the EEProm models.
      */
-    extern const int   EEPROM_MODEL_SIZES[];
+    extern const int   EEPROM_MODEL_SIZE[];
 
     /**
      * @brief Array of EEProm model address pin counts correlating to the EEProm models.
@@ -82,6 +82,7 @@
         int fileType;
         int eepromModel;
         int writeCycleUSec;
+        int useWriteCyclePolling;
         char i2cId;
         int boardType;
 
@@ -109,6 +110,9 @@
         int vccPin;
         int writeCycleTime;
         int useWriteCyclePolling;
+        int limit;
+        int startValue;
+        int fileType;
         
         int size;
         int maxAddressLength;
@@ -144,27 +148,25 @@
      * @param *gpioChip A pointer to the GPIO_CONFIG struct to reference gpio chip to be used.
      * @return int 0 if successful. Non-zero if error.
      */
-    int initHardware(struct EEPROM* eeprom, struct GPIO_CONFIG* gpioChip, struct OPTIONS *sOptions);
+    int initHardware(struct OPTIONS *sOptions, struct EEPROM* eeprom, struct GPIO_CONFIG* gpioChip);
     
     /**
      * @brief Compares a file to the EEPROM given the specified options.
      * @param *gpioChip A pointer to the GPIO_CONFIG struct to reference gpio chip to be used.
      * @param *eeprom A eeprom struct that contains the eeprom info.
      * @param *romFile A pointer to File to compare.
-     * @param *sOptions A pointer to the OPTIONS struct to reference all the configured options.
      * @return int 0 if successful. Non-zero if error.
      */
-    int compareFileToEEPROM(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions);
+    int compareFileToEEPROM(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom,FILE *romFile);
 
     /**
      * @brief Writes a file to the EEPROM given the specified options.
      * @param *gpioChip A pointer to the GPIO_CONFIG struct to reference gpio chip to be used.
      * @param *eeprom A eeprom struct that contains the eeprom info.
      * @param *romFile A pointer to File to read from.
-     * @param *sOptions A pointer to the OPTIONS struct to reference all the configured options.
      * @return int 0 if successful. Non-zero if error.
      */
-    int writeFileToEEPROM(struct GPIO_CONFIG* gpioChip,struct EEPROM* eeprom,FILE *romFile, struct OPTIONS *sOptions);
+    int writeFileToEEPROM(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, FILE *romFile);
 
     /**
      * @brief Read a byte from a specified address.
@@ -181,7 +183,7 @@
      * @param *eeprom A eeprom struct that contains the eeprom info.
      * @param addressToWrite The address to write to on the EEPROM.
      * @param dataToWrite The data to write to on the EEPROM.
-     * @return int Returns 0 if successful 1 if error.
+     * @return int Returns 0 if successful -1 if error.
      */
     int writeByteToAddress(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, int addressToWrite, char dataToWrite);
     
@@ -189,9 +191,9 @@
      * @brief Prints the contents of the EEPROM accoring to sOPtions.
      * @param *gpioChip A pointer to the GPIO_CONFIG struct to reference gpio chip to be used.
      * @param *eeprom A eeprom struct that contains the eeprom info.
-     * @param *sOptions A pointer to the OPTIONS struct to reference all the configured options.
+     * @param format The format to print the EEPROM contents.
      */
-    void printEEPROMContents(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, struct OPTIONS* sOptions);
+    void printEEPROMContents(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, int format);
 
     /**
      * @brief Releases and frees GPIO hardware.
