@@ -19,39 +19,31 @@ enum ALT_MODE {ALT0=0,ALT1,ALT2,ALT3,ALT4,ALT5};
 #define INP_GPIO(gpio,g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
 #define SET_GPIO_ALT(gpio,g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
 
+/* Set the ALT MODE of the specified pin */
 void setPinAltModeGPIO(volatile unsigned int* gpio, int pin, enum ALT_MODE altMode){
-    // gpio += (pin/10);
-    // *gpio &= ~(7<<(((pin)%10)*3));
-    // switch (altMode){
-    // case 0: case 1: case 2: case 3: 
-    //     altMode += 4;
-    //     break;
-    // case 4:
-    //     altMode = 3;
-    //     break;
-    // default:
-    //     altMode = 2;
-    // }
-    // altMode <<= (pin%10)*3;
-    // *gpio |= altMode;
     INP_GPIO(gpio,pin);
     SET_GPIO_ALT(gpio,pin,altMode);
 }
 
-int checkConfig(struct GPIO_CHIP* gpioChip, int gpioLineNumber){
+/* Ensure chip and line number are valid */
+int checkConfigGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber){
     int rtnVal = 0;
 
+    if(gpioChip == NULL){
+        ulog(ERROR,"gpioChip cannot be NULL.");
+        return -1;
+    }
     if(gpioChip->gpioLines == NULL){
         ulog(ERROR,"gpioLines cannot be NULL.");
-        rtnVal = -1;
+        return -1;
     }
     if (gpioChip != NULL && gpioChip->isSetup != 1){
         ulog(ERROR,"GPIO is not setup.");
-        rtnVal = -1;
+        return -1;
     }
     if( gpioLineNumber < 0 || gpioLineNumber >= gpioChip->numLinesInUse){
         ulog(ERROR,"Pin Number: %i is out of range of configured Pins",gpioLineNumber);
-        rtnVal = -1;
+        return -1;
     }
     return rtnVal;
 }
@@ -61,23 +53,19 @@ int setupGPIO(struct GPIO_CHIP* gpioChip){
     int err = 0;
     
     if(gpioChip == NULL){
-        ulog(ERROR,"Config cannot be NULL");
-        return -1;
-    }
-    if(gpioChip->chip == NULL ){
-        ulog(ERROR,"Chip cannot be NULL");
+        ulog(ERROR,"gpioChip cannot be NULL");
         return -1;
     }
     if(gpioChip->chipname == NULL){
         ulog(ERROR,"Chipname cannot be NULL");
         return -1;
     }
-    if(gpioChip->gpioLines == NULL){
-        ulog(ERROR,"gpioLines cannot be NULL");
-        return -1;
-    }
     if(gpioChip->consumer == NULL){
         ulog(ERROR,"Consumer cannot be NULL");
+        return -1;
+    }
+    if(gpioChip->gpioLines == NULL){
+        ulog(ERROR,"gpioLines cannot be NULL");
         return -1;
     }
     if(gpioChip->isSetup){
@@ -123,7 +111,7 @@ int setupGPIO(struct GPIO_CHIP* gpioChip){
 int setPinModeGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber, int pinMode){
     int err = 0;
     
-    if(checkConfig(gpioChip,gpioLineNumber)){
+    if(checkConfigGPIO(gpioChip,gpioLineNumber)){
         return -1;
     }
 
@@ -150,7 +138,7 @@ int setPinModeGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber, int pinMode){
 int readGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber){
     int val = 0;
  
-    if(checkConfig(gpioChip,gpioLineNumber)){
+    if(checkConfigGPIO(gpioChip,gpioLineNumber)){
         return -1;
     }
 
@@ -170,7 +158,7 @@ int readGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber){
 int writeGPIO(struct GPIO_CHIP* gpioChip,int gpioLineNumber,int level){
     int err = 0;
 
-    if(checkConfig(gpioChip,gpioLineNumber)){
+    if(checkConfigGPIO(gpioChip,gpioLineNumber)){
         return -1;
     }
     if(level != 0 && level != 1){
@@ -208,6 +196,7 @@ void cleanupGPIO(struct GPIO_CHIP* gpioChip){
 /*****************************************************************************/
 /*****************************************************************************/
 
+/* Map memory used by GPIO */
 volatile unsigned int* mapGPIOMemory(){
     int  mem_fd;
     void *gpio_map;
@@ -236,7 +225,6 @@ volatile unsigned int* mapGPIOMemory(){
     }
     return (volatile unsigned int*)gpio_map;
 }
-
 
 /* Sets up an I2C device to be used via the built in I2C pins */
 int setupI2C(char I2CId){
