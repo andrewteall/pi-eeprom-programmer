@@ -5,6 +5,7 @@
 
 /* Strings that correlate to LOGLEVEL enum so that LOGLEVEL can be printed */
 const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG",};
+const char *LOGLEVELSTRINGSPACERS[] = {"","\t ", "\t ", " ", "\t ", "\t ",};
 
 /* Static global Logging Level to track verbosity across the program */
 static int loggingLevel = WARNING;
@@ -17,7 +18,7 @@ void ulog(int verbosity, const char* logMessage,...) {
 		va_start(args, logMessage);
 		vsnprintf(logBuf,sizeof(logBuf),logMessage, args);
 		va_end(args);
-    	printf("%s:\t%s\n", LOGLEVELSTRINGS[verbosity],logBuf);
+    	printf("%s:%s%s\n", LOGLEVELSTRINGS[verbosity],LOGLEVELSTRINGSPACERS[verbosity], logBuf);
 	}
 }
 
