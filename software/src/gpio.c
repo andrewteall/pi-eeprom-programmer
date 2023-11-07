@@ -247,7 +247,11 @@ int setupI2C(char I2CId){
          ulog(ERROR,"Error configuring device.");
          return -1;
     }
-    usleep(1000); // Chip Vcc Startup
+    // Dummy write to make sure device is setup
+    if(write(fd, NULL, 0) != 0){
+        ulog(ERROR,"Device not available");
+        return -1;
+    }
     return fd;
 }
 
