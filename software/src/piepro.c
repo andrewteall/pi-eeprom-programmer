@@ -129,7 +129,7 @@ int setBytesParallel(struct GPIO_CONFIG* gpioConfig,struct EEPROM* eeprom,int ad
 			setPinMode(gpioConfig,eeprom->dataPins[i], OUTPUT);
 		}
 		// Set the data eeprom to the data to be written
-		setDataPins(gpioConfig, eeprom, data[addressToWrite+j]);
+		setDataPins(gpioConfig, eeprom, data[j]);
 		
 		// perform the write
 		setPinLevel(gpioConfig,eeprom->writeEnablePin,LOW);
