@@ -7,34 +7,37 @@ int main(int argc, char *argv[]){
 	
     if (argc == 1){
 		printHelp();
-		return 1;
+		error = -1;
 	} else {
         /*********************************************************************/
         /************************* Init Program ******************************/
-        FILE *romFile;
         struct EEPROM eeprom;
         struct GPIO_CONFIG gpioConfig;
-        struct OPTIONS sOptions;
+        struct OPTIONS options;
 		
-        if(parseCommandLineOptions(&sOptions,argc,argv)){
-            return 1;
+        if(parseCommandLineOptions(&options, argc, argv)){
+            fprintf(stderr,"Error parsing command line options\n");
+            return -1;
         }
         
-        if(initHardware(&sOptions, &eeprom, &gpioConfig)){
-            return 1;
+        if(initHardware(&options, &eeprom, &gpioConfig)){
+            fprintf(stderr,"Error initializing hardware\n");
+            return -1;
         }
+        
         /*********************************************************************/
         /************************* Program  Start ****************************/
-        switch(sOptions.action){
+        switch(options.action){
             case WRITE_FILE_TO_ROM:
             case COMPARE_FILE_TO_ROM:
                 // open file to read
-                romFile = fopen(sOptions.filename, "r");
+                FILE* romFile = fopen(options.filename, "r");
                 if(romFile == NULL){
                     fprintf(stderr,"Error Opening File\n");
-                    return 1;
+                    error = -1;
+                    break;
                 }
-                if(sOptions.action == WRITE_FILE_TO_ROM){
+                if(options.action == WRITE_FILE_TO_ROM){
                     error = writeFileToEEPROM(&gpioConfig, &eeprom, romFile);
                 } else {
                     error = compareFileToEEPROM(&gpioConfig, &eeprom, romFile);
@@ -42,23 +45,26 @@ int main(int argc, char *argv[]){
                 fclose(romFile);
                 break;
             case DUMP_ROM:
-                printEEPROMContents(&gpioConfig, &eeprom, sOptions.dumpFormat);
+                printEEPROMContents(&gpioConfig, &eeprom, options.dumpFormat);
                 break;
             case WRITE_SINGLE_BYTE_TO_ROM:
-                error = writeByteToAddress(&gpioConfig, &eeprom, sOptions.addressParam, sOptions.dataParam);
+                error = writeByteToAddress(&gpioConfig, &eeprom, options.addressParam, options.dataParam);
                 break;
             case READ_SINGLE_BYTE_FROM_ROM:
-                error = readByteFromAddress(&gpioConfig,&eeprom,sOptions.addressParam);
-                if(error != -1){
-                    printf("0x%02x\n", error);
+                int readVal = readByteFromAddress(&gpioConfig, &eeprom, options.addressParam);
+                if(readVal != -1){
+                    printf("0x%02x\n", readVal);
+                } else {
+                    error = readVal;
                 }
                 break;
         }
+
         /*********************************************************************/
+        /************************ Program Cleanup ****************************/
         cleanupHardware(&gpioConfig, &eeprom);
+
     }
-    if(error == -1){
-        error = 1;
-    }
+
 	return error;
 }
