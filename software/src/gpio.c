@@ -34,10 +34,6 @@ int checkConfigGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber){
         ulog(ERROR,"gpioChip cannot be NULL.");
         return -1;
     }
-    if(gpioChip->gpioLines == NULL){
-        ulog(ERROR,"gpioLines cannot be NULL.");
-        return -1;
-    }
     if (gpioChip != NULL && gpioChip->isSetup != 1){
         ulog(ERROR,"GPIO is not setup.");
         return -1;
@@ -63,10 +59,6 @@ int setupGPIO(struct GPIO_CHIP* gpioChip){
     }
     if(gpioChip->consumer == NULL){
         ulog(ERROR,"Consumer cannot be NULL");
-        return -1;
-    }
-    if(gpioChip->gpioLines == NULL){
-        ulog(ERROR,"gpioLines cannot be NULL");
         return -1;
     }
     if(gpioChip->isSetup){
