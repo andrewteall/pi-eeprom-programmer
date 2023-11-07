@@ -41,7 +41,13 @@ int main(int argc, char *argv[]){
                     error = writeFileToEEPROM(&gpioConfig, &eeprom, romFile);
                     fprintf(stdout,"Wrote %i bytes\n", eeprom.byteWriteCounter);
                 } else {
-                    error = compareFileToEEPROM(&gpioConfig, &eeprom, romFile);
+                    int bytesNotMatched = compareFileToEEPROM(&gpioConfig, &eeprom, romFile);
+                    if(bytesNotMatched == 0) {
+                        fprintf(stdout,"All bytes match\n");
+                    } else {
+                        error = -1;
+                        fprintf(stderr,"%i bytes do not match\n", bytesNotMatched);
+                    }
                 }
                 fclose(romFile);
                 break;
@@ -50,11 +56,16 @@ int main(int argc, char *argv[]){
                 break;
             case WRITE_SINGLE_BYTE_TO_ROM:
                 error = writeByteToAddress(&gpioConfig, &eeprom, options.addressParam, options.dataParam);
+                if(!error){
+                    fprintf(stdout,"Wrote Byte: 0x%02x to Address: 0x%02x\n", options.dataParam, options.addressParam);
+                } else {
+                    fprintf(stderr,"Error writing Byte: 0x%02x to Address: 0x%02x\n",options.dataParam,options.addressParam);
+                }
                 break;
             case READ_SINGLE_BYTE_FROM_ROM:
                 int readVal = readByteFromAddress(&gpioConfig, &eeprom, options.addressParam);
                 if(readVal != -1){
-                    printf("0x%02x\n", readVal);
+                    fprintf(stdout,"0x%02x\n", readVal);
                 } else {
                     error = readVal;
                 }
