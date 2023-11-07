@@ -100,13 +100,14 @@ void setDataPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,char data
 int finishWriteCycle(struct EEPROM* eeprom){
 	// Finish Write Cycle
 	if(eeprom->useWriteCyclePolling){
-		// Wait for Ack from write
+		// Dummy write to wait for Ack from write
 		if (eeprom->type == I2C){
 			while(writeI2C(eeprom->fd,NULL,0) == -1){
 				;;
 			}
 		} else {
 			// TODO: Implement Parallel EEPROM polling
+			usleep(eeprom->writeCycleTime);
 		}
 		return 0;
 	} else {
@@ -267,6 +268,7 @@ void setEEPROMParameters(struct OPTIONS* sOptions, struct EEPROM* eeprom){
 	eeprom->byteReadCounter = 0;
 
 	eeprom->useWriteCyclePolling = sOptions->useWriteCyclePolling;
+	
 
 	eeprom->size = EEPROM_MODEL_SIZE[sOptions->eepromModel];
 	eeprom->maxAddressLength = EEPROM_ADDRESS_LENGTH[sOptions->eepromModel];
@@ -275,7 +277,7 @@ void setEEPROMParameters(struct OPTIONS* sOptions, struct EEPROM* eeprom){
 	eeprom->addressSize = EEPROM_ADDRESS_SIZE[sOptions->eepromModel];
 	
 	if( sOptions->writeCycleUSec == -1){
-		eeprom->writeCycleTime = EEPROM_ADDRESS_SIZE[sOptions->eepromModel];
+		eeprom->writeCycleTime = EEPROM_WRITE_CYCLE_USEC[sOptions->eepromModel];
 	}else{
     	eeprom->writeCycleTime = sOptions->writeCycleUSec;
 	}
