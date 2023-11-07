@@ -37,11 +37,4 @@
      */
     long expo(int base, int power);
 
-    /**
-     * @brief Rounds a float up to the nearest whole number.
-     * @param floatNumber The number to round up.
-     * @return int Number that has been rounded up.
-     */
-    int roundUp(float floatNumber);
-
 #endif

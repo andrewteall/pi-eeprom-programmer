@@ -116,12 +116,3 @@ long expo(int base, int power){
 	}
     return result;
 }
-
-/* @brief Rounds a float up to the nearest whole number */
-int roundUp(float floatNumber){
-	int intNumber = (int)floatNumber;
-	if(intNumber < floatNumber){
-		intNumber++;
-	}
-	return intNumber;
-}
