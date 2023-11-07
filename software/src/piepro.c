@@ -80,7 +80,7 @@ void setPinMode(struct GPIO_CONFIG* gpioConfig, int pin, int mode){
 
 /* Set Address eeprom to value to read from or write to */
 void setAddressPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, unsigned int addressToSet){
-	for (char pin = 0;pin<eeprom->maxAddressLength;pin++){
+	for (char pin = 0;pin<=eeprom->maxAddressLength;pin++){
 		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
 			setPinLevel(gpioConfig,eeprom->addressPins[(int)pin],(addressToSet & 1));
 			addressToSet >>= 1;
@@ -430,7 +430,20 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, u
 		setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
 		byteVal = getByteI2C(eeprom,addressToRead);
 	} else {
-		byteVal = getByteParallel(gpioConfig,eeprom,addressToRead);
+		// byteVal = getByteParallel(gpioConfig,eeprom,addressToRead);
+		// set the address
+		setAddressPins(gpioConfig,eeprom,addressToRead);
+		// enable output from the chip
+		setPinLevel(gpioConfig,eeprom->outputEnablePin,LOW);
+		// set the rpi to input on it's gpio data lines
+		for(int i=0;i<eeprom->maxDataLength;i++){
+			setPinMode(gpioConfig,eeprom->dataPins[i],INPUT);
+		}
+		// read the eeprom and store to string
+		for(int i=eeprom->maxDataLength-1;i>=0;i--){
+			byteVal <<= 1;
+			byteVal |= (getPinLevel(gpioConfig,eeprom->dataPins[i]) & 1);		
+		}
 	}
 	// return the number
 	return byteVal;
