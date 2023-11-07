@@ -5,6 +5,7 @@
 #include "piepro.h"
 #include "utils.h"
 #include "gpio.h"
+#include "ulog.h"
 
 static char* const chipname = "gpiochip0";
 static char* const consumer = "Pi EEPROM Programmer";

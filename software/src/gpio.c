@@ -7,6 +7,7 @@
 
 #include "gpio.h"
 #include "utils.h"
+#include "ulog.h"
 
 #define MAX_USABLE_GPIO_LINES 34
 #define SDA1_PIN 2

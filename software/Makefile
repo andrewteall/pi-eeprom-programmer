@@ -27,7 +27,7 @@ all: piepro
 piepro: 
 		if [ ! -d $(BIN_DIR) ]; then mkdir -p $(BIN_DIR);fi
 		$(CC) $(CFLAGS) $(INCLUDE_DIRS) -o $(BIN_DIR)/$(OUT_FILE) $(SRC_PATH)/utils.c $(SRC_PATH)/main.c $(SRC_PATH)/$@.c \
-			$(SRC_PATH)/gpio.c -lgpiod
+			$(SRC_PATH)/gpio.c $(SRC_PATH)/ulog.c -lgpiod
 
 clean:
 		if [ -f $(BIN_DIR)/$(OUT_FILE) ]; then rm $(BIN_DIR)/$(OUT_FILE);fi
