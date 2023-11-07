@@ -39,6 +39,7 @@ int main(int argc, char *argv[]){
                 }
                 if(options.action == WRITE_FILE_TO_ROM){
                     error = writeFileToEEPROM(&gpioConfig, &eeprom, romFile);
+                    fprintf(stdout,"Wrote %i bytes\n", eeprom.byteWriteCounter);
                 } else {
                     error = compareFileToEEPROM(&gpioConfig, &eeprom, romFile);
                 }
