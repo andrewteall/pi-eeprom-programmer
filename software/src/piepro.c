@@ -631,27 +631,26 @@ void cleanupHardware(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom){
 /* Prints help message */
 void printHelp(){
 	fprintf(stdout,"piepro v%s\n",VERSION);
-	fprintf(stdout,"Usage: piepro [options] [file]\n");
+	fprintf(stdout,"Usage: piepro [options]\n");
 	fprintf(stdout,"Options:\n");
-	// fprintf(stdout," -b,        --board         Specify the SoC board used. Default: Raspberry Pi 4/400\n");
 	fprintf(stdout," -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.\n");
 	fprintf(stdout,"            --chipname      Specify the chipname to use. Default: gpiochip0\n");
-	fprintf(stdout," -d N,      --dump N        Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
+	fprintf(stdout," -d N,      --dump N        Dump the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY\n");
 	fprintf(stdout," -f,        --force         Force writing of every byte instead of checking for existing value first.\n");
-	fprintf(stdout," -id,       --i2c-device-id The Address id of the I2C device.\n");
+	fprintf(stdout," -id,       --i2c-device-id The address id of the I2C device.\n");
 	fprintf(stdout," -h,        --help          Print this message and exit.\n");
 	fprintf(stdout," -l N,      --limit N       Specify the maximum address to operate.\n");
 	fprintf(stdout," -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.\n");
 	fprintf(stdout,"            --no-validate-write \n");
 	fprintf(stdout,"                            Do not perform a read directly after writing to verify the data was written.\n");
-	fprintf(stdout," -r,        --read          Read the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
+	fprintf(stdout," -r,        --read          Read the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY\n");
 	fprintf(stdout," -rb N,     --read-byte ADDRESS \n");
 	fprintf(stdout,"                            Read From specified ADDRESS.\n");
 	fprintf(stdout," -s N,      --start N       Specify the minimum address to operate.\n");
-	fprintf(stdout," -t,        --text          Interpret file as a binary. Default: binary\n");
+	fprintf(stdout," -t,        --text          Interpret file as a text. Default: binary\n");
 	fprintf(stdout,"                            Text File format:\n");
 	fprintf(stdout,"                            [00000000]00000000 00000000\n");
-	fprintf(stdout," -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
+	fprintf(stdout," -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG. Default: WARNING\n");
 	fprintf(stdout,"            --version       Print the piepro version and exit.\n");
 	fprintf(stdout," -w FILE,   --write FILE    Write EEPROM with specified file.\n");
 	fprintf(stdout," -wb ADDRESS DATA, --write-byte ADDRESS DATA \n");

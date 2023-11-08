@@ -105,31 +105,31 @@ Most modern EERPOMs will work but if you're using an obscure EEPROM you need to 
 
 ## __Command Line Options__
 ```
-Usage: piepro [options] [file]
+Usage: piepro [options]
 Options:
- -b,        --board         Specify the SoC board used. Default: Raspberry Pi 4/400
- -c,        --compare       Compare file and EEPROM and print differences.
+ -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.
             --chipname      Specify the chipname to use. Default: gpiochip0
- -d N,      --dump N        Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.
+ -d N,      --dump N        Dump the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY
  -f,        --force         Force writing of every byte instead of checking for existing value first.
- -i FILE,   --image FILE    The Filename to use.
- -id,       --i2c-device-id The Address id of the I2C device.
+ -id,       --i2c-device-id The address id of the I2C device.
  -h,        --help          Print this message and exit.
  -l N,      --limit N       Specify the maximum address to operate.
-            --no-validate-write Do not perform a read directly after writing to verify the data was written.
  -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.
- -r N,      --read ADDRESS  Read the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.
- -rb N,     --read-byte ADDRESS  Read From specified ADDRESS.
+            --no-validate-write 
+                            Do not perform a read directly after writing to verify the data was written.
+ -r,        --read          Read the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY
+ -rb N,     --read-byte ADDRESS 
+                            Read From specified ADDRESS.
  -s N,      --start N       Specify the minimum address to operate.
  -t,        --text          Interpret file as a text. Default: binary
                             Text File format:
                             [00000000]00000000 00000000
- -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.
+ -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG. Default: WARNING
             --version       Print the piepro version and exit.
- 
- -w,        --write         Write EEPROM with specified file.
- -wb ADDRESS DATA, --write-byte ADDRESS DATA    Write specified DATA to ADDRESS.
- -wd N,     --write-delay N Number of microseconds to delay between writes.
+ -w FILE,   --write FILE    Write EEPROM with specified file.
+ -wb ADDRESS DATA, --write-byte ADDRESS DATA 
+                            Write specified DATA to ADDRESS.
+ -wd [N],   --write-delay N Enable write delay. N Number of microseconds to delay between writes.
  ```
 
  ## __Features, Bugs, and Contributing__
