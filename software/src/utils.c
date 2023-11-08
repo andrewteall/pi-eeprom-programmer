@@ -48,21 +48,15 @@ int str2num(char *numStr){
 			if(!(i < limit) ){
 				if ((numStr[i] >= '0' && numStr[i] <= '9') || (numStr[i] >= 'A' && numStr[i] <= 'F') \
 					|| (numStr[i] >= 'a' && numStr[i] <= 'f') ){
-					if (j < 9){
-						if (numStr[i] >= 'A' && numStr[i] <= 'F') {
-							num += (numStr[i]-0x37)*(expo(16 , j++));
-						} else if (numStr[i] >= 'a' && numStr[i] <= 'f'){
-							num += (numStr[i]-0x57)*(expo(16 , j++));
-						} else {
-							num += (numStr[i]-0x30)*(expo(16 , j++));
-						}
+					if (numStr[i] >= 'A' && numStr[i] <= 'F') {
+						num += (numStr[i]-0x37)*(expo(16 , j++));
+					} else if (numStr[i] >= 'a' && numStr[i] <= 'f'){
+						num += (numStr[i]-0x57)*(expo(16 , j++));
 					} else {
-						ulog(ERROR,"Number out of Range");
-						num = -1;
-						i = -1;
+						num += (numStr[i]-0x30)*(expo(16 , j++));
 					}
 				} else {
-					ulog(ERROR,"Not a valid hexidecimal number");
+					ulog(DEBUG,"Not a valid hexidecimal number");
 					num = -1;
 					i = -1;
 				}
@@ -75,31 +69,24 @@ int str2num(char *numStr){
 			}
 
 			if(!(i < limit) ){
-				if (numSize < strlen(numStr) && numSize < 32){
-					num += (numStr[i]-48)*(1 << j++);
-					numSize++;
-				} else {
-					ulog(ERROR,"Number out of Range");
-					num = -1;
-					i = -1;
-				}
+				num += (numStr[i]-48)*(1 << j++);
+				numSize++;
 			}
 		} else { 
 			// convert decimal number
 			if (numStr[i] >= '0' && numStr[i] <= '9'){
-				if (j < 11){ // This could be better
-					num += (numStr[i]-0x30)*(expo(10 , j++));
-				} else {
-					ulog(ERROR,"Number out of Range");
-					num = -1;
-					i = -1;
-				}
+				num += (numStr[i]-0x30)*(expo(10 , j++));
 			} else {
-				ulog(ERROR,"Not a valid decimal number");
+				ulog(DEBUG,"Not a valid decimal number");
 				num = -1;
 				i = -1;
 			}
 		}
+		if (num < 0) {
+			ulog(ERROR,"Number out of Range");
+			num = -1;
+			i = -1;
+		}	
 	}
 	return num;
 }
