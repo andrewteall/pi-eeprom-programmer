@@ -96,7 +96,12 @@ Where MODEL_TYPE is typically the IC's part number such as at28c64, xl2816, at24
 
 To write to an EEPROM, after building the circuit and inserting the IC, run the command
 ```sh
-piepro -w -m MODEL_TYPE file.bin
+piepro -w file.bin -m MODEL_TYPE
+```
+To compare you EEPROM to the file after writing, run the command
+
+```sh
+piepro -c file.bin -m MODEL_TYPE
 ```
 Where MODEL_TYPE is typically the IC's part number such as at28c64, xl2816, at24c02, etc...
 
