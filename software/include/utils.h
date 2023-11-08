@@ -1,11 +1,6 @@
 #ifndef UTILS_H
     #define UTILS_H 1
 
-    #define MAJOR "0"
-    #define MINOR "9"
-    #define PATCH "2"
-    #define VERSION  MAJOR "." MINOR "." PATCH
-
     /**
      * @brief Converts a number to it's corresponding binary string.
      * @param *binStrBuf The buffer to store the converted string.
