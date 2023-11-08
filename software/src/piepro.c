@@ -421,7 +421,7 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead){
 	int byteVal = 0;
 	if(addressToRead > eeprom->size-1){
-		ulog(ERROR,"Address out of range of EEPROM: %i",addressToRead);
+		ulog(ERROR,"Address out of range of EEPROM: 0x%02x",addressToRead);
 		return -1;
 	}
 	if (eeprom->type == I2C){
@@ -438,7 +438,7 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, i
 int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char dataToWrite){
 	int err = 0;
 	if(addressToWrite > eeprom->size-1){
-		ulog(ERROR,"Address out of range of EEPROM: %i",addressToWrite);
+		ulog(ERROR,"Address out of range of EEPROM: 0x%02x",addressToWrite);
 		return -1;
 	}
 	if (eeprom->type == I2C){
