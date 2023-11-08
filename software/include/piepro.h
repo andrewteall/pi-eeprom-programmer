@@ -29,6 +29,8 @@
      */
 	enum APP_FUNCTIONS {
                         NOTHING,
+                        HELP,
+                        VER,
                         WRITE_FILE_TO_ROM,
                         COMPARE_FILE_TO_ROM,
                         WRITE_SINGLE_BYTE_TO_ROM,
@@ -72,6 +74,7 @@
      *        system.
      */
     struct OPTIONS {
+        // Options
         char* filename;
         long limit;
         long startValue;
@@ -83,12 +86,12 @@
         int eepromModel;
         int writeCycleUSec;
         int useWriteCyclePolling;
-        char i2cId;
         int boardType;
-
+        // Single Read/Write Parameters
         int addressParam;
         int dataParam;
-
+        // I2C Specific
+        char i2cId;
         char* consumer;
         char* chipname;
         int numGPIOLines;

@@ -71,7 +71,6 @@ int main(int argc, char *argv[]){
                 }
                 break;
             case NOTHING:
-            default:
 		        fprintf(stdout,"No action specified. Run piepro -h for a list of options\n");
                 break;
         }
