@@ -227,14 +227,15 @@ int setByteI2C(struct EEPROM* eeprom, int addressToWrite, char data){
 	return setBytesI2C(eeprom, addressToWrite, &data, 1);
 }
 
-/* Fast forward to start value when reading file */
-void seekFileToStartValue(FILE *romFile, int startValue){
+/* Fast forward to start value when reading file and return the size*/
+int setupFileToRead(FILE *romFile, int startValue){
 	fseek(romFile, 0L, SEEK_END);
 	unsigned long size = ftell(romFile);
 	rewind(romFile);
 	if(size > startValue){
 		fseek(romFile,startValue,SEEK_SET);
 	}
+	return size;
 }
 
 /* Get the next set of Data from a text file formatted rom */
@@ -511,10 +512,9 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 	char dataToWrite;
 	int addressToWrite = eeprom->startValue;
 	int err = 0;
-
-	seekFileToStartValue(romFile,eeprom->startValue);
+	unsigned int fileSize = setupFileToRead(romFile,eeprom->startValue);
 	
-	while((addressToWrite < eeprom->limit && (dataToWrite = fgetc(romFile)) != EOF)) {
+	while((addressToWrite < eeprom->limit && addressToWrite < fileSize && (dataToWrite = fgetc(romFile)) != EOF)) {
 		err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite++, dataToWrite);
 	}
 	return err;
@@ -525,10 +525,9 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 	char dataToCompare;
 	int addressToCompare = eeprom->startValue;
 	int bytesNotMatched = 0;
+	unsigned int fileSize = setupFileToRead(romFile,eeprom->startValue);
 
-	seekFileToStartValue(romFile,eeprom->startValue);
-
-	while(((dataToCompare = fgetc(romFile)) != EOF) && addressToCompare < eeprom->limit) {
+	while(((dataToCompare = fgetc(romFile)) != EOF) && addressToCompare < fileSize && addressToCompare < eeprom->limit) {
 		char byte = readByteFromAddress(gpioConfig, eeprom,addressToCompare);
 		if (byte != dataToCompare){
 			ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i",addressToCompare,byte,dataToCompare);
