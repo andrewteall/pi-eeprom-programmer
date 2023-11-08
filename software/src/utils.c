@@ -69,8 +69,14 @@ int str2num(char *numStr){
 			}
 
 			if(!(i < limit) ){
-				num += (numStr[i]-48)*(1 << j++);
-				numSize++;
+				if(numStr[i] == '0' || numStr[i] == '1'){
+					num += (numStr[i]-48)*(1 << j++);
+					numSize++;
+				} else {
+					ulog(DEBUG,"Not a valid binary number");
+					num = -1;
+					i = -1;
+				}
 			}
 		} else { 
 			// convert decimal number
