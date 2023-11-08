@@ -79,7 +79,7 @@ void setPinMode(struct GPIO_CONFIG* gpioConfig, int pin, int mode){
 }
 
 /* Set Address eeprom to value to read from or write to */
-void setAddressPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, unsigned int addressToSet){
+void setAddressPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToSet){
 	for (char pin = 0;pin<=eeprom->maxAddressLength;pin++){
 		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
 			setPinLevel(gpioConfig,eeprom->addressPins[(int)pin],(addressToSet & 1));
@@ -89,7 +89,7 @@ void setAddressPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, unsig
 }
 
 /* Set Data eeprom to value to write */
-void setDataPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom,char dataToSet){
+void setDataPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char dataToSet){
 	for (char pin = 0;pin<eeprom->maxDataLength;pin++){
 		setPinLevel(gpioConfig,eeprom->dataPins[(int)pin],(dataToSet & 1));
 		dataToSet >>= 1;
@@ -118,7 +118,8 @@ int finishWriteCycle(struct EEPROM* eeprom){
 }
 
 /* Writes bytes to an EEPROM via Parallel GPIO */
-int setBytesParallel(struct GPIO_CONFIG* gpioConfig,struct EEPROM* eeprom,int addressToWrite,char* data,int numBytesToWrite){
+int setBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, \
+						char* data, int numBytesToWrite){
 	for(int j=0;j < numBytesToWrite; j++){
 		// set the address
 		setAddressPins(gpioConfig, eeprom, addressToWrite);
@@ -146,7 +147,8 @@ int setByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int a
 }
 
 /* Reads bytes from an EEPROM via Parallel GPIO */
-int* getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead, int numBytesToRead,int* buf){
+int* getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead, \
+						int numBytesToRead, int* buf){
 	for(int j=0; j<numBytesToRead;j++){
 		int byteVal = 0;
 		// set the address
@@ -316,13 +318,12 @@ void setGPIOConfigParameters(struct OPTIONS* options, struct GPIO_CONFIG* gpioCo
 /* Initialize Raspberry Pi to perform action on EEPROM */
 int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CONFIG* gpioConfig){
 	setEEPROMParameters(options, eeprom);
-	
+	ulog(DEBUG,"Starting GPIO Initialization");
 	setGPIOConfigParameters(options, gpioConfig);
 	if(setupGPIO(&gpioConfig->gpioChip)){
 		ulog(ERROR, "Failed to setup GPIO");
 		return -1;
 	}
-
 	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C256){
 		eeprom->fd = setupI2C(eeprom->i2cId);
 								// 2; // 8 // 3 // I2C Pins 
@@ -375,9 +376,8 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 			eeprom->addressPins[11] = 24; // 5 // 18
 		} else if (eeprom->model <= AT28C16){
 			eeprom->writeEnablePin =  24; // 5 // 18
-			eeprom->vccPin = 		  15; // 16 // 10
 		}
-	
+
 		eeprom->addressPins[8] =    18; //  1 // 12
 		eeprom->addressPins[9] =    23; //  4 // 16
 
@@ -399,28 +399,26 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 				setPinMode(gpioConfig,eeprom->addressPins[i], OUTPUT);	
 			}
 		}
-	
+		
 		for(int i=0;i<eeprom->maxDataLength;i++){
 			setPinMode(gpioConfig,eeprom->dataPins[i], INPUT);
 		}
-
+		
 		setPinMode(gpioConfig,eeprom->chipEnablePin, OUTPUT);
 		setPinMode(gpioConfig,eeprom->outputEnablePin, OUTPUT);
 		setPinMode(gpioConfig,eeprom->writeEnablePin, OUTPUT);
-		setPinMode(gpioConfig,eeprom->vccPin, OUTPUT);
 		setPinLevel(gpioConfig,eeprom->chipEnablePin, LOW);
 		setPinLevel(gpioConfig,eeprom->outputEnablePin, HIGH);
 		setPinLevel(gpioConfig,eeprom->writeEnablePin, HIGH);
-		setPinLevel(gpioConfig,eeprom->vccPin, HIGH);
-		
 	}
+
 	usleep(5000); //startup delay
 	ulog(DEBUG,"Finished GPIO Initialization");
 	return 0;
 }
 
 /* Read byte from specified Address */
-int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, unsigned int addressToRead){
+int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead){
 	int byteVal = 0;
 	if(addressToRead > eeprom->size-1){
 		ulog(ERROR,"Address out of range of EEPROM: %i",addressToRead);
@@ -439,7 +437,7 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, u
 /* Write specified byte to specified address */
 int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char dataToWrite){
 	int err = 0;
-	if((unsigned)addressToWrite > eeprom->size-1){
+	if(addressToWrite > eeprom->size-1){
 		ulog(ERROR,"Address out of range of EEPROM: %i",addressToWrite);
 		return -1;
 	}
@@ -466,6 +464,8 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 					ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
 					eeprom->byteWriteCounter++;
 				}
+			} else {
+				eeprom->byteWriteCounter++;
 			}
 		}
 	}
@@ -690,7 +690,7 @@ void setDefaultOptions(struct OPTIONS* options){
 }
 
 /* Parses and processes all command line arguments */
-int  parseCommandLineOptions(struct OPTIONS* options,int argc, char* argv[]){
+int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
     setDefaultOptions(options);
 
     options->filename = argv[argc-1];

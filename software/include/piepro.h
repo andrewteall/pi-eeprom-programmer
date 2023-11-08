@@ -4,9 +4,7 @@
     
     #define MAX_ADDRESS_PINS 15
     #define MAX_DATA_PINS 8
-    #define MAX_PAGE_SIZE 256
-    #define MAX_ADDRESS_SIZE 3
-    
+
     /**
      * @brief Enumeration of the different supported EEProm models.
      */
@@ -147,11 +145,11 @@
     /**
      * @brief Initializes and EEProm struct with the porvided options.
      * @param *eeprom A eeprom struct that contains the eeprom info.
-     * @param *sOptions A pointer to the OPTIONS struct to reference all the configured options.
+     * @param *options A pointer to the OPTIONS struct to reference all the configured options.
      * @param *gpioChip A pointer to the GPIO_CONFIG struct to reference gpio chip to be used.
      * @return int 0 if successful. Non-zero if error.
      */
-    int initHardware(struct OPTIONS *sOptions, struct EEPROM* eeprom, struct GPIO_CONFIG* gpioChip);
+    int initHardware(struct OPTIONS *options, struct EEPROM* eeprom, struct GPIO_CONFIG* gpioChip);
     
     /**
      * @brief Compares a file to the EEPROM given the specified options.
@@ -178,7 +176,7 @@
      * @param addressToRead The address to read from on the EEPROM.
      * @return int Returns the value of the byte read.
      */
-    int readByteFromAddress(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom,unsigned int addressToRead);
+    int readByteFromAddress(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, int addressToRead);
 
     /**
      * @brief Writes a byte to a specified address.
@@ -191,7 +189,7 @@
     int writeByteToAddress(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, int addressToWrite, char dataToWrite);
     
     /**
-     * @brief Prints the contents of the EEPROM accoring to sOPtions.
+     * @brief Prints the contents of the EEPROM accoring to options.
      * @param *gpioChip A pointer to the GPIO_CONFIG struct to reference gpio chip to be used.
      * @param *eeprom A eeprom struct that contains the eeprom info.
      * @param format The format to print the EEPROM contents.
@@ -208,13 +206,13 @@
     /**
      * @brief Parses all the command line Arguments and sets the appropriate options
      *        in the OPTIONS struct.
-     * @param sOptions A pointer to the OPTIONS struct to store all the configured
+     * @param options A pointer to the OPTIONS struct to store all the configured
      *        options.
      * @param argc Count of command line arguments.
      * @param argv A pointer to the Array of command line arguments.
      * @return int 0 is no errors occured.
      */
-    int parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]);
+    int parseCommandLineOptions(struct OPTIONS* options,int argc, char* argv[]);
 
     /**
      * @brief Prints the command usage.
