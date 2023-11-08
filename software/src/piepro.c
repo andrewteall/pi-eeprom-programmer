@@ -117,7 +117,7 @@ int finishWriteCycle(struct EEPROM* eeprom){
 	return 0;
 }
 
-/* Writes bytes to an EEPROM via I2C */
+/* Writes bytes to an EEPROM via Parallel GPIO */
 int setBytesParallel(struct GPIO_CONFIG* gpioConfig,struct EEPROM* eeprom,int addressToWrite,char* data,int numBytesToWrite){
 	for(int j=0;j < numBytesToWrite; j++){
 		// set the address
@@ -140,7 +140,7 @@ int setBytesParallel(struct GPIO_CONFIG* gpioConfig,struct EEPROM* eeprom,int ad
 	return 0;
 }
 
-/* Write a single byte to an EEPROM via I2C */
+/* Write a single byte to an EEPROM via Parallel GPIO */
 int setByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char data){
 	return setBytesParallel(gpioConfig, eeprom, addressToWrite, &data, 1);
 }
@@ -256,36 +256,36 @@ int getNextFromTextFile(struct EEPROM *eeprom, FILE *romFile){
 }
 
 /* Sets all parameters for the EEPROM to be used */
-void setEEPROMParameters(struct OPTIONS* sOptions, struct EEPROM* eeprom){
-	eeprom->model = sOptions->eepromModel;
-	eeprom->i2cId = sOptions->i2cId;
-	eeprom->forceWrite = sOptions->force;
-	eeprom->validateWrite = sOptions->validateWrite;
-	eeprom->startValue = sOptions->startValue;
-	eeprom->fileType = sOptions->fileType;
+void setEEPROMParameters(struct OPTIONS* options, struct EEPROM* eeprom){
+	eeprom->model = options->eepromModel;
+	eeprom->i2cId = options->i2cId;
+	eeprom->forceWrite = options->force;
+	eeprom->validateWrite = options->validateWrite;
+	eeprom->startValue = options->startValue;
+	eeprom->fileType = options->fileType;
 
 	eeprom->byteWriteCounter = 0;
 	eeprom->byteReadCounter = 0;
 
-	eeprom->useWriteCyclePolling = sOptions->useWriteCyclePolling;
+	eeprom->useWriteCyclePolling = options->useWriteCyclePolling;
 	
 
-	eeprom->size = EEPROM_MODEL_SIZE[sOptions->eepromModel];
-	eeprom->maxAddressLength = EEPROM_ADDRESS_LENGTH[sOptions->eepromModel];
-	eeprom->maxDataLength = (EEPROM_DATA_LENGTH[sOptions->eepromModel]);
-	eeprom->pageSize = EEPROM_PAGE_SIZE[sOptions->eepromModel];
-	eeprom->addressSize = EEPROM_ADDRESS_SIZE[sOptions->eepromModel];
+	eeprom->size = EEPROM_MODEL_SIZE[options->eepromModel];
+	eeprom->maxAddressLength = EEPROM_ADDRESS_LENGTH[options->eepromModel];
+	eeprom->maxDataLength = (EEPROM_DATA_LENGTH[options->eepromModel]);
+	eeprom->pageSize = EEPROM_PAGE_SIZE[options->eepromModel];
+	eeprom->addressSize = EEPROM_ADDRESS_SIZE[options->eepromModel];
 	
-	if( sOptions->writeCycleUSec == -1){
-		eeprom->writeCycleTime = EEPROM_WRITE_CYCLE_USEC[sOptions->eepromModel];
+	if( options->writeCycleUSec == -1){
+		eeprom->writeCycleTime = EEPROM_WRITE_CYCLE_USEC[options->eepromModel];
 	}else{
-    	eeprom->writeCycleTime = sOptions->writeCycleUSec;
+    	eeprom->writeCycleTime = options->writeCycleUSec;
 	}
 
-	if( sOptions->limit == -1){
-		eeprom->limit = EEPROM_MODEL_SIZE[sOptions->eepromModel];
+	if( options->limit == -1){
+		eeprom->limit = EEPROM_MODEL_SIZE[options->eepromModel];
 	}else{
-    	eeprom->limit = sOptions->limit;
+    	eeprom->limit = options->limit;
 	}
 
 	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C256){
@@ -297,14 +297,14 @@ void setEEPROMParameters(struct OPTIONS* sOptions, struct EEPROM* eeprom){
 }
 
 /* Sets all parameters to use GPIO */
-void setGPIOConfigParameters(struct OPTIONS* sOptions, struct GPIO_CONFIG* gpioConfig){
-	gpioConfig->gpioChip.chipname = sOptions->chipname;
-	gpioConfig->gpioChip.numGPIOLines = sOptions->numGPIOLines;
-	gpioConfig->gpioChip.consumer = sOptions->consumer;
+void setGPIOConfigParameters(struct OPTIONS* options, struct GPIO_CONFIG* gpioConfig){
+	gpioConfig->gpioChip.chipname = options->chipname;
+	gpioConfig->gpioChip.numGPIOLines = options->numGPIOLines;
+	gpioConfig->gpioChip.consumer = options->consumer;
 
-	gpioConfig->chipname = sOptions->chipname;
-	gpioConfig->numGPIOLines = sOptions->numGPIOLines;
-	gpioConfig->consumer = sOptions->consumer;
+	gpioConfig->chipname = options->chipname;
+	gpioConfig->numGPIOLines = options->numGPIOLines;
+	gpioConfig->consumer = options->consumer;
 
 	gpioConfig->gpioChip.isSetup = 0;
 }
@@ -314,10 +314,10 @@ void setGPIOConfigParameters(struct OPTIONS* sOptions, struct GPIO_CONFIG* gpioC
 ******************************************************************************/
 
 /* Initialize Raspberry Pi to perform action on EEPROM */
-int initHardware(struct OPTIONS *sOptions, struct EEPROM *eeprom, struct GPIO_CONFIG* gpioConfig){
-	setEEPROMParameters(sOptions, eeprom);
+int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CONFIG* gpioConfig){
+	setEEPROMParameters(options, eeprom);
 	
-	setGPIOConfigParameters(sOptions, gpioConfig);
+	setGPIOConfigParameters(options, gpioConfig);
 	if(setupGPIO(&gpioConfig->gpioChip)){
 		ulog(ERROR, "Failed to setup GPIO");
 		return -1;
@@ -422,7 +422,7 @@ int initHardware(struct OPTIONS *sOptions, struct EEPROM *eeprom, struct GPIO_CO
 /* Read byte from specified Address */
 int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, unsigned int addressToRead){
 	int byteVal = 0;
-	if(addressToRead > eeprom->size){
+	if(addressToRead > eeprom->size-1){
 		ulog(ERROR,"Address out of range of EEPROM: %i",addressToRead);
 		return -1;
 	}
@@ -430,20 +430,7 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, u
 		setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
 		byteVal = getByteI2C(eeprom,addressToRead);
 	} else {
-		// byteVal = getByteParallel(gpioConfig,eeprom,addressToRead);
-		// set the address
-		setAddressPins(gpioConfig,eeprom,addressToRead);
-		// enable output from the chip
-		setPinLevel(gpioConfig,eeprom->outputEnablePin,LOW);
-		// set the rpi to input on it's gpio data lines
-		for(int i=0;i<eeprom->maxDataLength;i++){
-			setPinMode(gpioConfig,eeprom->dataPins[i],INPUT);
-		}
-		// read the eeprom and store to string
-		for(int i=eeprom->maxDataLength-1;i>=0;i--){
-			byteVal <<= 1;
-			byteVal |= (getPinLevel(gpioConfig,eeprom->dataPins[i]) & 1);		
-		}
+		byteVal = getByteParallel(gpioConfig,eeprom,addressToRead);
 	}
 	// return the number
 	return byteVal;
@@ -452,7 +439,7 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, u
 /* Write specified byte to specified address */
 int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char dataToWrite){
 	int err = 0;
-	if((unsigned)addressToWrite > eeprom->size){
+	if((unsigned)addressToWrite > eeprom->size-1){
 		ulog(ERROR,"Address out of range of EEPROM: %i",addressToWrite);
 		return -1;
 	}
@@ -460,7 +447,7 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 		if (eeprom->forceWrite || dataToWrite != getByteI2C(eeprom,addressToWrite)){
 			setPinLevel(gpioConfig,eeprom->writeProtectPin,LOW);
 			if (setByteI2C(eeprom, addressToWrite, dataToWrite) != -1){
-				ulog(INFO,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+				ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
 				eeprom->byteWriteCounter++;
 			} else {
 				ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
@@ -476,7 +463,7 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 					ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
 					err = -1;
 				} else {
-					ulog(INFO,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+					ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
 					eeprom->byteWriteCounter++;
 				}
 			}
@@ -497,7 +484,6 @@ int writeTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom,
 			err |= writeByteToAddress(gpioConfig, eeprom, address, data);
 		}
 	}
-	ulog(INFO,"Wrote %i bytes",eeprom->byteWriteCounter);
 	return err;
 }
 
@@ -517,12 +503,6 @@ int compareTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eepro
 			}
 		}
 	}
-
-	if(bytesNotMatched == 0) {
-		ulog(INFO,"All bytes match.");
-	} else {
-		ulog(INFO,"%i bytes do not match",bytesNotMatched);
-	}
 	return bytesNotMatched;
 }
 
@@ -537,7 +517,6 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 	while((addressToWrite < eeprom->limit && (dataToWrite = fgetc(romFile)) != EOF)) {
 		err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite++, dataToWrite);
 	}
-	ulog(INFO,"Wrote %i bytes",eeprom->byteWriteCounter);
 	return err;
 }
 
@@ -556,11 +535,6 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 			bytesNotMatched++;
 		}
 		addressToCompare++;
-	}
-	if(bytesNotMatched == 0) {
-		ulog(INFO,"All bytes match.");
-	} else {
-		ulog(INFO,"%i bytes do not match", bytesNotMatched);
 	}
 	return bytesNotMatched;
 }
@@ -592,7 +566,7 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 	switch (format) {
 	case 0:
 		for (int i=eeprom->startValue;i<eeprom->limit;i++){
-			printf("Address: %i     Data: %i \n",i,readByteFromAddress(gpioConfig, eeprom,i));
+			fprintf(stdout,"Address: %i     Data: %i \n",i,readByteFromAddress(gpioConfig, eeprom,i));
 		}
 		break;
 	case 1:	// binary
@@ -614,9 +588,9 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 			if ( eeprom->startValue < 0x100 && eeprom->limit < 0x100){
 				char shortAddressBinStr[9];
 				strncpy(shortAddressBinStr,&addressBinStr[8],8);
-				printf("%s %s \n", shortAddressBinStr,dataBinStr);
+				fprintf(stdout,"%s %s \n", shortAddressBinStr,dataBinStr);
 			} else {
-				printf("%s %s \n",addressBinStr,dataBinStr);
+				fprintf(stdout,"%s %s \n",addressBinStr,dataBinStr);
 			}
 		}
 		break;
@@ -627,17 +601,17 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 			eeprom->startValue = eeprom->startValue - ((eeprom->startValue % 16));
 		}
 
-		printf("       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
-		printf("Device ===============================================================\n");
+		fprintf(stdout,"       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
+		fprintf(stdout,"Device ===============================================================\n");
 		for (int i=eeprom->startValue;i<eeprom->limit;i++){
-			printf("%04x | ",i);
+			fprintf(stdout,"%04x | ",i);
 			int j=0;
 			while(j<16 && i<eeprom->limit){
-				printf("%02x  ",readByteFromAddress(gpioConfig, eeprom,i++));
+				fprintf(stdout,"%02x  ",readByteFromAddress(gpioConfig, eeprom,i++));
 				j++;
 			}
 			i--;
-			printf("\n");
+			fprintf(stdout,"\n");
 		}
 
 		break;
@@ -656,78 +630,83 @@ void cleanupHardware(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom){
 
 /* Prints help message */
 void printHelp(){
-	printf("piepro v%s\n",VERSION);
-	printf("Usage: piepro [options] [file]\n");
-	printf("Options:\n");
-	printf(" -b,        --board         Specify the SoC board used. Default: Raspberry Pi 4/400\n");
-	printf(" -c,        --compare       Compare file and EEPROM and print differences.\n");
-	printf("            --chipname      Specify the chipname to use. Default: gpiochip0\n");
-	printf(" -d N, 	    --dump N        Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
-	printf(" -f,   	    --force         Force writing of every byte instead of checking for existing value first.\n");
-	printf(" -i FILE,   --image FILE    The Filename to use.\n");
-	printf(" -id,       --i2c-device-id The Address id of the I2C device.\n");
-	printf(" -h,   	    --help          Print this message and exit.\n");
-	printf(" -l N, 	    --limit N       Specify the maximum address to operate.\n");
-	printf("       	    --no-validate-write Do not perform a read directly after writing to verify the data was written.\n");
-	printf(" -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.\n");
-	printf(" -r N, 	    --read ADDRESS  Read the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
-	printf(" -rb N,     --read-byte ADDRESS  Read From specified ADDRESS.\n");
-	printf(" -s N, 	    --start N       Specify the minimum address to operate.\n");
-	printf(" -t,        --text          Interpret file as a binary. Default: binary\n");
-	printf("                            Text File format:\n");
-	printf("                            [00000000]00000000 00000000\n");
-	printf(" -v N, 	    --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
-	printf("            --version       Print the piepro version and exit.\n");
-	printf(" -w,   	    --write         Write EEPROM with specified file.\n");
-	printf(" -wb ADDRESS DATA, --write-byte ADDRESS DATA	Write specified DATA to ADDRESS.\n");
-	printf(" -wd N,     --write-delay N Number of microseconds to delay between writes.\n");
-	printf("\n");
+	fprintf(stdout,"piepro v%s\n",VERSION);
+	fprintf(stdout,"Usage: piepro [options] [file]\n");
+	fprintf(stdout,"Options:\n");
+	// fprintf(stdout," -b,        --board         Specify the SoC board used. Default: Raspberry Pi 4/400\n");
+	fprintf(stdout," -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.\n");
+	fprintf(stdout,"            --chipname      Specify the chipname to use. Default: gpiochip0\n");
+	fprintf(stdout," -d N,      --dump N        Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
+	fprintf(stdout," -f,        --force         Force writing of every byte instead of checking for existing value first.\n");
+	fprintf(stdout," -id,       --i2c-device-id The Address id of the I2C device.\n");
+	fprintf(stdout," -h,        --help          Print this message and exit.\n");
+	fprintf(stdout," -l N,      --limit N       Specify the maximum address to operate.\n");
+	fprintf(stdout," -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.\n");
+	fprintf(stdout,"            --no-validate-write \n");
+	fprintf(stdout,"                            Do not perform a read directly after writing to verify the data was written.\n");
+	fprintf(stdout," -r,        --read          Read the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.\n");
+	fprintf(stdout," -rb N,     --read-byte ADDRESS \n");
+	fprintf(stdout,"                            Read From specified ADDRESS.\n");
+	fprintf(stdout," -s N,      --start N       Specify the minimum address to operate.\n");
+	fprintf(stdout," -t,        --text          Interpret file as a binary. Default: binary\n");
+	fprintf(stdout,"                            Text File format:\n");
+	fprintf(stdout,"                            [00000000]00000000 00000000\n");
+	fprintf(stdout," -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.\n");
+	fprintf(stdout,"            --version       Print the piepro version and exit.\n");
+	fprintf(stdout," -w FILE,   --write FILE    Write EEPROM with specified file.\n");
+	fprintf(stdout," -wb ADDRESS DATA, --write-byte ADDRESS DATA \n");
+	fprintf(stdout,"                            Write specified DATA to ADDRESS.\n");
+	fprintf(stdout," -wd [N],   --write-delay N Enable write delay. N Number of microseconds to delay between writes.\n");
+	fprintf(stdout,"\n");
 }
 
 /* Prints version number */
 void printVersion(){
-	printf("piepro v%s\n",VERSION);
+	fprintf(stdout,"piepro v%s\n",VERSION);
 }
 
 /* Sets default options */
-void setDefaultOptions(struct OPTIONS* sOptions){
-    sOptions->limit = -1;
-    sOptions->startValue = 0;
-    sOptions->dumpFormat = 3;
-    sOptions->validateWrite = 1;
-    sOptions->force = 0;
-    sOptions->action = NOTHING;
-    sOptions->fileType = BINARY_FILE;
-    sOptions->eepromModel = AT28C16;
-    sOptions->writeCycleUSec = -1;
-	sOptions->useWriteCyclePolling = 1;
-    sOptions->i2cId = 0x50;
-	sOptions->boardType = RPI4;
-	sOptions->filename = NULL;
-    sOptions->addressParam = 0;
-    sOptions->dataParam = 0;
-	sOptions->consumer = consumer;
-    sOptions->chipname = chipname;
-    sOptions->numGPIOLines = 28;
+void setDefaultOptions(struct OPTIONS* options){
+	// Options
+    options->filename = NULL;
+	options->limit = -1;
+    options->startValue = 0;
+    options->dumpFormat = 3;
+    options->validateWrite = 1;
+    options->force = 0;
+    options->action = NOTHING;
+    options->fileType = BINARY_FILE;
+    options->eepromModel = AT28C16;
+    options->writeCycleUSec = -1;
+	options->useWriteCyclePolling = 1;
+	options->boardType = RPI4;
+	// Single Read/Write Parameters
+    options->addressParam = 0;
+    options->dataParam = 0;
+	// I2C Specific
+	options->i2cId = 0x50;
+	options->consumer = consumer;
+    options->chipname = chipname;
+    options->numGPIOLines = 28;
 }
 
 /* Parses and processes all command line arguments */
-int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
-    setDefaultOptions(sOptions);
+int  parseCommandLineOptions(struct OPTIONS* options,int argc, char* argv[]){
+    setDefaultOptions(options);
 
-    sOptions->filename = argv[argc-1];
+    options->filename = argv[argc-1];
 		for(int i=argc-1;i>0;i--){
 			// -h --help
 			if (!(strcmp(argv[i],"-h")) || (!strcmp(argv[i],"--help"))){
 				printHelp();
-				sOptions->action = NOTHING;
+				options->action = HELP;
 				return 0;
 			}
 
 			// --version
 			if (!strcmp(argv[i],"--version")){
 				printVersion();
-				sOptions->action = NOTHING;
+				options->action = VER;
 				return 0;
 			}
 
@@ -736,196 +715,230 @@ int  parseCommandLineOptions(struct OPTIONS* sOptions,int argc, char* argv[]){
 				|| !strcmp(argv[i],"--vvv") || !strcmp(argv[i],"--vvvv")|| !strcmp(argv[i],"--vvvvv")){
 				int verbosity = 0;
 				if (!strcmp(argv[i],"-v")){
-					verbosity = str2num(argv[i+1]);
+					if (i != argc-1) {
+						verbosity = str2num(argv[i+1]);
+					} else {
+						ulog(ERROR,"%s Flag must have a verbosity level specified",argv[i]);
+					return -1;
+					}
 				} else {
 					verbosity = strlen(argv[i])-2;
 				}
 				if (setLoggingLevel(verbosity)){
-					return 1;
+					return -1;
 				}
 			}
 		}
 
-		for(int i=argc-1;i>0;i--){
-			// -s --start
-			if (!strcmp(argv[i],"-s") || !strcmp(argv[i],"--start")){
-				ulog(INFO,"Setting starting value to %i",str2num(argv[i+1]));
-				sOptions->startValue = str2num(argv[i+1]);
-				if ( sOptions->startValue == -1){
-					ulog(FATAL,"Unsupported starting value");
-					return 1;
-				}
-			}
-
-			// -i --image
-			if (!strcmp(argv[i],"-i") || !strcmp(argv[i],"--image")){
-				ulog(INFO,"Setting filename to %s",argv[i+1]);
-				sOptions->filename = argv[i+1];
-			}
-
-			// -l --limit
-			if (!strcmp(argv[i],"-l") || !strcmp(argv[i],"--limit")){
-				ulog(INFO,"Setting limit to %i",str2num(argv[i+1]));
-				sOptions->limit = str2num(argv[i+1]);
-				if ( sOptions->limit== -1){
-					ulog(FATAL,"Unsupported limit value");
-					return 1;
-				}
-			}
-
-			// -b --board 
-			if (!strcmp(argv[i],"-b") || !strcmp(argv[i],"--board")){
-				ulog(INFO,"Setting SoC Board type to Raspberry Pi 4/400");
-				ulog(INFO,"Right now only 1 board is supported");
-				// sOptions->fileType = BINARY_FILE;
-			}
-
-			// -t --text 
-			if (!strcmp(argv[i],"-t") || !strcmp(argv[i],"--text")){
-				ulog(INFO,"Setting filetype to text");
-				sOptions->fileType = TEXT_FILE;
-			}
-
-			// -wd --write-delay
-			if (!strcmp(argv[i],"-wd") || !strcmp(argv[i],"--write-delay")){
-				ulog(INFO,"Setting write cycle delay time to %i",str2num(argv[i+1]));
-				sOptions->writeCycleUSec = str2num(argv[i+1]);
-				if ( sOptions->writeCycleUSec == -1){
-					ulog(FATAL,"Unsupported delay value");
-					return 1;
-				}
-			}
-
-			// -id --i2c-device-id
-			if (!strcmp(argv[i],"-id") || !strcmp(argv[i],"--i2c-device-id")){
-				ulog(INFO,"Setting I2C id to %i",str2num(argv[i+1]));
-				sOptions->i2cId = str2num(argv[i+1]);
-				if ( sOptions->i2cId == -1){
-					ulog(FATAL,"Unsupported I2C id value");
-					return 1;
+		for(int i=1;i<argc;i++){
+			// -c --compare
+			if (!strcmp(argv[i],"-c") || !strcmp(argv[i],"--compare")){
+				if (options->action != COMPARE_FILE_TO_ROM && options->action != NOTHING){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else if (i != argc-1) {
+					ulog(INFO,"Comparing EEPROM to File: %s",argv[i+1]);
+					options->action = COMPARE_FILE_TO_ROM;
+					options->filename = argv[i+1];
+					i++;
+				} else {
+					ulog(ERROR,"%s Flag must have a filename specified",argv[i]);
+					return -1;
 				}
 			}
 
 			// --chipname
 			if (!strcmp(argv[i],"--chipname")){
-				ulog(INFO,"Setting Chipname to %i",str2num(argv[i+1]));
-				sOptions->chipname = argv[i+1];
+				if (i != argc-1) {
+					ulog(INFO,"Setting Chipname to %s",argv[i+1]);
+					options->chipname = argv[i+1];
+					i++;
+				} else {
+					ulog(ERROR,"%s Flag must have a chipname specified",argv[i]);
+					return -1;
+				}
 			}
 
 			// -d --dump || -r --read
 			if (!strcmp(argv[i],"-d") || !strcmp(argv[i],"--dump") || !strcmp(argv[i],"-r") || !strcmp(argv[i],"--read")){
-				if (sOptions->action != DUMP_ROM && sOptions->action != NOTHING){
+				if (options->action != DUMP_ROM && options->action != NOTHING){
 					ulog(WARNING, \
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
 					ulog(INFO,"Dumping EEPROM to standard out");
-					int tmpLog = getLoggingLevel();
-					setLoggingLevel(OFF);
-					int format = str2num(argv[i+1]);
-					setLoggingLevel(tmpLog);
+					int format = 3;
+					if (i != argc-1) {
+						format = str2num(argv[i+1]);
+						i++;
+					}
 					if(format == -1 || format > 3){
-						ulog(INFO,"No dump format specified, invalid dump format, or number out of range. Using default.");
-						sOptions->dumpFormat = 3;
+						options->dumpFormat = 3;
 					} else {
-						sOptions->dumpFormat = str2num(argv[i+1]);
+						options->dumpFormat = format;
 					}
-					sOptions->action = DUMP_ROM;
+					options->action = DUMP_ROM;
 				}
 			}
 
-			// -wb --write-byte
-			if (!strcmp(argv[i],"-wb") || !strcmp(argv[i],"--write-byte")){
-				if (sOptions->action != WRITE_SINGLE_BYTE_TO_ROM && sOptions->action != NOTHING){
-					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
-				} else {
-					
-					sOptions->addressParam = str2num(argv[i+1]);
-					sOptions->dataParam = str2num(argv[i+2]);
-					if ( sOptions->addressParam == -1 || sOptions->dataParam == -1) {
-						ulog(ERROR,"Unsupported number format. Exiting.");
-						return 1;
-					}
-					if (sOptions->dataParam > 0xFF){
-						ulog(ERROR,"Data byte too large. Please specify a value less than 256.");
-						return 1;
-					}
-					ulog(INFO,"Writing Byte %s to Address %s",argv[i+2],argv[i+1]);
-					sOptions->action = WRITE_SINGLE_BYTE_TO_ROM;
-				}
+			// -f --force
+			if (!strcmp(argv[i],"-f") || !strcmp(argv[i],"--force")){
+					ulog(INFO,"Forcing all writes even if value is already present.");
+					options->force = 1;
 			}
 
-			// -rb --read-byte
-			if (!strcmp(argv[i],"-rb") || !strcmp(argv[i],"--read-byte")){
-				if (sOptions->action != READ_SINGLE_BYTE_FROM_ROM && sOptions->action != NOTHING){
-					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
-				} else {
-					
-					sOptions->addressParam = str2num(argv[i+1]);
-					if ( sOptions->addressParam == -1) {
-						ulog(ERROR,"Unsupported number format. Exiting.");
-						return 1;
+			// -id --i2c-device-id
+			if (!strcmp(argv[i],"-id") || !strcmp(argv[i],"--i2c-device-id")){
+				if (i != argc-1) {
+					options->i2cId = str2num(argv[i+1]);		
+					if ( options->i2cId == (char)-1){
+						ulog(ERROR,"Unsupported I2C id value");
+						return -1;
+					} else {
+						ulog(INFO,"Setting I2C id to %i",options->i2cId);
 					}
-					ulog(INFO,"Reading single byte from Address %s",argv[i+1]);
-					sOptions->action = READ_SINGLE_BYTE_FROM_ROM;
+					i++;
+				} else {
+					ulog(ERROR,"%s Flag must have an id specified",argv[i]);
+					return -1;
 				}
+				
 			}
 
-			// -c --compare
-			if (!strcmp(argv[i],"-c") || !strcmp(argv[i],"--compare")){
-				if (sOptions->action != COMPARE_FILE_TO_ROM && sOptions->action != NOTHING){
-					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+			// -l --limit
+			if (!strcmp(argv[i],"-l") || !strcmp(argv[i],"--limit")){
+				if (i != argc-1) {
+					options->limit = str2num(argv[i+1]);
+					ulog(INFO,"Setting limit to %i",options->limit);
+					if ( options->limit== -1){
+						ulog(ERROR,"Unsupported limit value");
+						return -1;
+					}
 				} else {
-					ulog(INFO,"Comparing EEPROM to File");
-					sOptions->action = COMPARE_FILE_TO_ROM;
+					ulog(ERROR,"%s Flag must have a value specified",argv[i]);
+					return -1;
 				}
 			}
-
-			// -w --write
-			if (!strcmp(argv[i],"-w") || !strcmp(argv[i],"--write")){
-				if (sOptions->action != WRITE_FILE_TO_ROM && sOptions->action != NOTHING){
-					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+			
+			// -m --model
+			if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--model")){
+				if (i != argc-1) {
+					options->eepromModel = 0;
+					while(options->eepromModel < END && strcmp(argv[i+1],EEPROM_MODEL_STRINGS[options->eepromModel])){
+						options->eepromModel++;
+					}
+					if(options->eepromModel == END){
+						ulog(INFO,"Supported EEPROM Models:");
+						for(int i=0; i < END-1;i++){
+							ulog(INFO,"\t%s",EEPROM_MODEL_STRINGS[i]);
+						}
+						ulog(FATAL,"Unsupported EEPROM Model");
+						return -1;
+					}
+					ulog(INFO,"Setting EEPROM model to %s",EEPROM_MODEL_STRINGS[options->eepromModel]);
 				} else {
-					ulog(INFO,"Writing File to EEPROM");
-					sOptions->action = WRITE_FILE_TO_ROM;
+					ulog(ERROR,"%s Flag must have a model specified",argv[i]);
+					return -1;
 				}
 			}
 
 			// --no-validate-write
 			if (!strcmp(argv[i],"--no-validate-write")){
 				ulog(WARNING,"Disabling write verification");
-				sOptions->validateWrite = 0;
+				options->validateWrite = 0;
 			}
 
-			// -f --force
-			if (!strcmp(argv[i],"-f") || !strcmp(argv[i],"--force")){
-					ulog(INFO,"Forcing all writes even if value is already present.");
-					sOptions->force = 1;
-			}
-
-			// -m --model
-			if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--model")){
-				sOptions->eepromModel = 0;
-				while(sOptions->eepromModel < END && strcmp(argv[i+1],EEPROM_MODEL_STRINGS[sOptions->eepromModel])){
-					sOptions->eepromModel++;
-				}
-				if(sOptions->eepromModel == END){
-					ulog(INFO,"Supported EEPROM Models:");
-					for(int i=0; i < END-1;i++){
-						ulog(INFO,"\t%s",EEPROM_MODEL_STRINGS[i]);
+			// -rb --read-byte
+			if (!strcmp(argv[i],"-rb") || !strcmp(argv[i],"--read-byte")){
+				if (options->action != READ_SINGLE_BYTE_FROM_ROM && options->action != NOTHING){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else if (i != argc-1) {
+					options->addressParam = str2num(argv[i+1]);
+					if ( options->addressParam == -1) {
+						ulog(ERROR,"Invalid number. Exiting.");
+						return -1;
 					}
-					ulog(FATAL,"Unsupported EEPROM Model");
-					return 1;
+					ulog(INFO,"Reading single byte from Address %s",argv[i+1]);
+					options->action = READ_SINGLE_BYTE_FROM_ROM;
+				}else {
+					ulog(ERROR,"%s Flag must have a value specified",argv[i]);
+					return -1;
 				}
-				ulog(INFO,"Setting EEPROM model to %s",EEPROM_MODEL_STRINGS[sOptions->eepromModel]);
 			}
+
+			// -s --start
+			if (!strcmp(argv[i],"-s") || !strcmp(argv[i],"--start")){
+				if (i != argc-1) {
+					options->startValue = str2num(argv[i+1]);
+					ulog(INFO,"Setting starting value to %i",options->startValue);
+					if ( options->startValue == -1){
+						ulog(FATAL,"Unsupported starting value");
+						return -1;
+					}
+				} else {
+					ulog(ERROR,"%s Flag must have a value specified",argv[i]);
+					return -1;
+				}
+			}
+
+			// -t --text 
+			if (!strcmp(argv[i],"-t") || !strcmp(argv[i],"--text")){
+				ulog(INFO,"Setting filetype to text");
+				options->fileType = TEXT_FILE;
+			}
+
+			// -w --write
+			if (!strcmp(argv[i],"-w") || !strcmp(argv[i],"--write")){
+				if (options->action != WRITE_FILE_TO_ROM && options->action != NOTHING){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else if (i != argc-1) {
+					ulog(INFO,"Writing File to EEPROM");
+					options->action = WRITE_FILE_TO_ROM;
+					options->filename = argv[i+1];
+					ulog(INFO,"Setting filename to %s",options->filename);
+				} else {
+					ulog(ERROR,"%s Flag must have a filename specified",argv[i]);
+					return -1;
+				}
+			}
+
+			// -wd --write-delay
+			if (!strcmp(argv[i],"-wd") || !strcmp(argv[i],"--write-delay")){
+				ulog(INFO,"Using Write Cycle Delay instead of Polling");
+				options->useWriteCyclePolling = 0;
+				if (i != argc-1) {
+					options->writeCycleUSec = str2num(argv[i+1]);
+					if ( options->writeCycleUSec != -1){
+						ulog(INFO,"Setting write cycle delay time to %i",options->writeCycleUSec);
+					}
+				}
+			}
+
+			// -wb --write-byte
+			if (!strcmp(argv[i],"-wb") || !strcmp(argv[i],"--write-byte")){
+				if (options->action != WRITE_SINGLE_BYTE_TO_ROM && options->action != NOTHING){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else if (i < argc-2) {
+					options->addressParam = str2num(argv[i+1]);
+					options->dataParam = str2num(argv[i+2]);
+					if ( options->addressParam == -1 || options->dataParam == -1) {
+						ulog(ERROR,"Invalid number. Exiting.");
+						return -1;
+					}
+					if (options->dataParam > 0xFF){
+						ulog(ERROR,"Data byte too large. Please specify a value less than 256.");
+						return -1;
+					}
+					ulog(INFO,"Writing Byte %s to Address %s",argv[i+2],argv[i+1]);
+					options->action = WRITE_SINGLE_BYTE_TO_ROM;
+				} else  {
+					ulog(ERROR,"%s Flag must have an address and data specified",argv[i]);
+					return -1;
+				}
+			}
+
 		}
-	
-	if(sOptions->action == NOTHING){
-		ulog(WARNING,"No action specified. Doing Nothing. Run piepro -h for a list of options");
-	}
 	return 0;
 }
