@@ -20,7 +20,7 @@ See [Quick Start](../README.md#quick-start)
 See [Flags](../README.md#command-line-options)
 
 ## __Quirks__
-Right now the -d. --dump, -r, and --read flags don't need a format. A warning will be printed but can be ignored as the EEPROM dump will still be pretty printed.
+--no-validate-write has no affect on I2C devices.
 
 ## __Updating__
 Updates can be performed by just running

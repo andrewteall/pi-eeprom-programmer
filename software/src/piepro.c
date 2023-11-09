@@ -799,7 +799,7 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 					ulog(INFO,"Dumping EEPROM to standard out");
 					int format = 3;
 					if (i != argc-1) {
-						format = str2num(argv[i+1]);
+						format = str2numOptionalLog(argv[i+1], 1);
 						i++;
 					}
 					if(format == -1 || format > 3){
@@ -939,7 +939,7 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 				ulog(INFO,"Using Write Cycle Delay instead of Polling");
 				options->useWriteCyclePolling = 0;
 				if (i != argc-1) {
-					options->writeCycleUSec = str2num(argv[i+1]);
+					options->writeCycleUSec = str2numOptionalLog(argv[i+1], 1);
 					if ( options->writeCycleUSec != -1){
 						ulog(INFO,"Setting write cycle delay time to %i",options->writeCycleUSec);
 					}

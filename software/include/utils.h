@@ -25,6 +25,14 @@
     int str2num(char *numStr);
 
     /**
+     * @brief Converts a string to it's corresponding value.
+     * @param numStr The string to convert
+     * @param supressLog Enable or Disbale logging of the function
+     * @return int The resulting number of the conversion. -1 if error.
+     */
+    int str2numOptionalLog(char *numStr, int supressLog);
+
+    /**
      * @brief Performs exponentiation of two numbers.
      * @param base The number to be exponentiated
      * @param power The exponent

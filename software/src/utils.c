@@ -10,7 +10,8 @@ char* num2binStr(char* binStrBuf, int num, int strBufLen){
 		num >>= 1;
     }
 	if(num !=0){
-		ulog(WARNING,"Error: String Buffer not large enough to hold number: %i",num);
+		ulog(ERROR,"String Buffer not large enough to hold number: %i",num);
+		return (char*) -1;
 	}
     binStrBuf[strBufLen] = 0;
     return binStrBuf;
@@ -33,9 +34,12 @@ int binStr2num(char *binStr){
 	}
 	return num;
 }
+int str2num(char *numStr){
+	return str2numOptionalLog(numStr, 0);
+}
 
 /* Converts a number string to a number */
-int str2num(char *numStr){
+int str2numOptionalLog(char *numStr, int supressLog){
 	int num = 0;
 	int numSize = 0;
 	for (int i=strlen(numStr)-1,j=0;i>=0;i--){
@@ -56,7 +60,9 @@ int str2num(char *numStr){
 						num += (numStr[i]-0x30)*(expo(16 , j++));
 					}
 				} else {
-					ulog(DEBUG,"Not a valid hexidecimal number");
+					if(!supressLog){
+						ulog(DEBUG,"Not a valid hexidecimal number");
+					}
 					num = -1;
 					i = -1;
 				}
@@ -73,7 +79,9 @@ int str2num(char *numStr){
 					num += (numStr[i]-48)*(1 << j++);
 					numSize++;
 				} else {
-					ulog(DEBUG,"Not a valid binary number");
+					if(!supressLog){
+						ulog(DEBUG,"Not a valid binary number");
+					}
 					num = -1;
 					i = -1;
 				}
@@ -83,13 +91,17 @@ int str2num(char *numStr){
 			if (numStr[i] >= '0' && numStr[i] <= '9'){
 				num += (numStr[i]-0x30)*(expo(10 , j++));
 			} else {
-				ulog(DEBUG,"Not a valid decimal number");
+				if(!supressLog){
+					ulog(DEBUG,"Not a valid decimal number");
+				}
 				num = -1;
 				i = -1;
 			}
 		}
 		if (num < 0) {
-			ulog(ERROR,"Number out of Range");
+			if(!supressLog){
+				ulog(ERROR,"Number out of Range");
+			}
 			num = -1;
 			i = -1;
 		}	

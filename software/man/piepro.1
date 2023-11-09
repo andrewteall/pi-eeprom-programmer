@@ -127,7 +127,14 @@ Write specified DATA to ADDRESS.
 Enable write delay. N Number of microseconds to delay between writes.
 .RE
 
+.SH NUMBER FORMATTING
+Numbers can be formatted in several ways:
+Decimal: 0-9
+Hexadecimal: 0x0-[fF] or $0-[fF]
+Binary: 00b0-1 or %0-1
 
+.SH QUIRKS
+--no-validate-write has no affect on I2C devices.
 .SH BUGS
 No known bugs.
 .SH AUTHOR
