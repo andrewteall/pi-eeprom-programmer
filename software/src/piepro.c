@@ -640,7 +640,7 @@ void printHelp(){
 	fprintf(stdout,"Options:\n");
 	fprintf(stdout," -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.\n");
 	fprintf(stdout,"            --chipname      Specify the chipname to use. Default: gpiochip0\n");
-	fprintf(stdout," -d N,      --dump N        Dump the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY\n");
+	fprintf(stdout," -d [N],    --dump [N]      Dump the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY\n");
 	fprintf(stdout," -f,        --force         Force writing of every byte instead of checking for existing value first.\n");
 	fprintf(stdout," -id,       --i2c-device-id The address id of the I2C device.\n");
 	fprintf(stdout," -h,        --help          Print this message and exit.\n");
@@ -648,7 +648,7 @@ void printHelp(){
 	fprintf(stdout," -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.\n");
 	fprintf(stdout,"            --no-validate-write \n");
 	fprintf(stdout,"                            Do not perform a read directly after writing to verify the data was written.\n");
-	fprintf(stdout," -r,        --read          Read the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY\n");
+	fprintf(stdout," -r [N],    --read [N]      Read the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY\n");
 	fprintf(stdout," -rb N,     --read-byte ADDRESS \n");
 	fprintf(stdout,"                            Read From specified ADDRESS.\n");
 	fprintf(stdout," -s N,      --start N       Specify the minimum address to operate.\n");
