@@ -38,7 +38,6 @@
     /**
      * @brief Set GPIO Pins to input or output.
      * @param *gpioChip Pointer to the GPIO_CHIP struct to be used
-     * @param **gpioLines Pointer to an array of gpiod_lines.
      * @param gpioLineNumber the GPIO number to be control direction.
      * @param direction The mode of the GPIO Pin. INPUT or OUTPUT
      * @return int 0 if successful -1 if any error occurs.
@@ -48,7 +47,6 @@
     /**
      * @brief Read the value of the specified GPIO Pin.
      * @param *gpioChip Pointer to the GPIO_CHIP struct to be used
-     * @param **gpioLines Pointer to an array of gpiod_lines.
      * @param gpioLineNumber the GPIO number to be read from.
      * @return int 0 if successful -1 if any error occurs.
      */
@@ -57,7 +55,6 @@
     /**
      * @brief Write the value to the specified GPIO Pin.
      * @param *gpioChip Pointer to the GPIO_CHIP struct to be used
-     * @param **gpioLines Pointer to an array of gpiod_lines.
      * @param gpioLineNumber the GPIO number to be written to.
      * @param level The value to write. HIGH or LOW.
      * @return int 0 if successful -1 or non-zero if any error occurs.
@@ -79,18 +76,18 @@
 
     /**
      * @brief Reads a byte via the I2C bus.
-     * @param int The file descriptor of the I2C device to be used.
-     * @param char* Buffer for the bytes that are read.
-     * @param int The number of bytes to read including the address.
+     * @param fd The file descriptor of the I2C device to be used.
+     * @param buf* Buffer for the bytes that are read.
+     * @param numBytesToRead The number of bytes to read including the address.
      * @return int* The byte read from the I2C device or -1 if error.
      */
     int* readI2C(int fd, int* buf, int numBytesToRead);
     
     /**
      * @brief Writes a byte via the I2C bus.
-     * @param int The file descriptor of the I2C device to be used.
-     * @param char* The data to be written.
-     * @param int The number of bytes to write including the address.
+     * @param fd The file descriptor of the I2C device to be used.
+     * @param data* The data to be written.
+     * @param numBytesToWrite The number of bytes to write including the address.
      * @return int number of bytes writen if successful -1 if any error occurs.
      */
     int writeI2C(int fd, char* data, int numBytesToWrite);
