@@ -178,46 +178,48 @@ int getByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int a
 }
 
 /* Populates the array for the I2C format */
-int buildI2CDataArray(struct EEPROM* eeprom, int address, int* buf){
-	int i = 0;
+void setAddressinBuffer(struct EEPROM* eeprom, int address, char* buf){
+	int i = eeprom->addressSize-1;
 
 	// Set the Address
-    while(i < eeprom->addressSize){
-        buf[i++] = address & 0xFF;
-        address >>= (i*8);	// i is 1 at first so we shift 8 bits each pass for each byte of the address
-    }
-    if(address != 0){
-        ulog(ERROR,"Address out of Range for EEPROM: %i", address);
-        return -1;
+    while(i >= 0){
+        buf[i--] = address & 0xFF;
+        address >>= 8;	// i is 1 at first so we shift 8 bits each pass for each byte of the address
     }
 
-	return i;
+    if(address != 0){
+        ulog(WARNING,"Address out of Range for EEPROM: %i", address);
+    }
 }
 
 /* Reads bytes from an EEPROM via I2C */
-int* getBytesI2C(struct EEPROM* eeprom, int addressToRead, int numBytesToRead, int* buf){
-    int bufSize = buildI2CDataArray(eeprom,addressToRead, buf);
-	return readI2C(eeprom->fd,buf,bufSize);
+char* getBytesI2C(struct EEPROM* eeprom, int addressToRead, int numBytesToRead, char* buf){
+    setAddressinBuffer(eeprom, addressToRead, buf);
+	return readI2C(eeprom->fd, buf, eeprom->addressSize+numBytesToRead, eeprom->addressSize);
 }
 
 /* Read a single byte from and EEPROM via I2C */
 int getByteI2C(struct EEPROM* eeprom, int address){
-	int buf[eeprom->addressSize + 1];
-	getBytesI2C(eeprom,address,1, buf);
+	char buf[eeprom->addressSize + 1];
+	getBytesI2C(eeprom, address, 1, buf);
 	return *buf;
 }
 
 /* Writes bytes to an EEPROM via I2C */
 int setBytesI2C(struct EEPROM* eeprom, int addressToWrite, char* data, int numBytesToWrite){
-	char buf[eeprom->addressSize + numBytesToWrite];
+	int bufSize = eeprom->addressSize + numBytesToWrite;
+	char buf[bufSize];
 	
-	int bufSize = buildI2CDataArray(eeprom,addressToWrite, (int*)buf);
+	// Set the Address
+	setAddressinBuffer(eeprom, addressToWrite, buf);
+
 	// Set the Data
-    while((bufSize - eeprom->addressSize) < numBytesToWrite){
-        buf[bufSize] = data[bufSize - eeprom->addressSize];
-        ++bufSize;
-    }
-	int numBytesWritten = writeI2C(eeprom->fd,buf,bufSize);
+	for(int i = 0; i < numBytesToWrite && i+eeprom->addressSize < bufSize;i++){
+		buf[eeprom->addressSize+i] = data[i];
+	}
+
+	// Do the write
+	int numBytesWritten = writeI2C(eeprom->fd, buf, bufSize);
 	finishWriteCycle(eeprom);
 	return numBytesWritten;
 }
@@ -291,7 +293,7 @@ void setEEPROMParameters(struct OPTIONS* options, struct EEPROM* eeprom){
     	eeprom->limit = options->limit;
 	}
 
-	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C256){
+	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
 		eeprom->type = I2C;
 	} else {
 		eeprom->type = PARALLEL;
@@ -325,7 +327,7 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 		ulog(ERROR, "Failed to setup GPIO");
 		return -1;
 	}
-	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C256){
+	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C512){
 								// 2; // 8 // 3 // I2C Pins 
 								// 3; // 9 // 5 // I2C Pins
 

@@ -249,18 +249,17 @@ int setupI2C(char I2CId){
 }
 
 /* Read from a specified address via I2C */
-int* readI2C(int fd, int* buf, int numBytesToRead){
-    // TODO: Fix data sizings
-    int bytesWritten = write(fd,buf,1);
+char* readI2C(int fd, char* buf, int numBytesToRead, int addressSize){
+    int bytesWritten = write(fd, buf, addressSize);
     if(bytesWritten == -1){
         ulog(ERROR,"Error reading byte(s) via I2C");
-        return (int*) -1;
+        return (char*) -1;
     }
     int bytesRead = read(fd,buf,1);
     if(bytesRead == -1){
         buf[0] = bytesRead;
         ulog(ERROR,"Error reading byte(s) via I2C");
-        return (int*) -1;
+        return (char*) -1;
     }
     return buf;
 }

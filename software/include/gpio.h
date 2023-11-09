@@ -79,9 +79,10 @@
      * @param fd The file descriptor of the I2C device to be used.
      * @param buf* Buffer for the bytes that are read.
      * @param numBytesToRead The number of bytes to read including the address.
-     * @return int* The byte read from the I2C device or -1 if error.
+     * @param addressSize The number of bytes of the address.
+     * @return char* Pointer to the byte read from the I2C device or -1 if error.
      */
-    int* readI2C(int fd, int* buf, int numBytesToRead);
+    char* readI2C(int fd, char* buf, int numBytesToRead, int addressSize);
     
     /**
      * @brief Writes a byte via the I2C bus.
