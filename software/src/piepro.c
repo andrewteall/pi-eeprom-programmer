@@ -635,6 +635,25 @@ void cleanupHardware(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom){
 *******************************************************************************
 ******************************************************************************/
 
+void printSupportedEEPROMs(){
+	fprintf(stdout,"Tested Models:\n");
+	fprintf(stdout,"\tNote that the program may work if your EEPROM uses a similar pinout and\n"); 
+	fprintf(stdout,"\tvoltages to the ones listed.\n");
+	fprintf(stdout," Model       Size(B)  Addr Len  Data Len   Write Cycle(uS)  Page Size(B) Address Size(B)\n");
+	fprintf(stdout,"----------------------------------------------------------------------------------------\n");
+	for(int i=0; i != END; i++){
+		fprintf(stdout,"%-10s %7i %8i %9i %14i %13i %13i\n", \
+		EEPROM_MODEL_STRINGS[i], \
+		EEPROM_MODEL_SIZE[i], \
+		EEPROM_ADDRESS_LENGTH[i], \
+		EEPROM_DATA_LENGTH[i], \
+		EEPROM_WRITE_CYCLE_USEC[i], \
+		EEPROM_PAGE_SIZE[i], \
+		EEPROM_ADDRESS_SIZE[i] \
+		);
+	}
+}
+
 /* Prints help message */
 void printHelp(){
 	fprintf(stdout,"piepro v%s\n",VERSION);
@@ -664,6 +683,8 @@ void printHelp(){
 	fprintf(stdout,"                            Write specified DATA to ADDRESS.\n");
 	fprintf(stdout," -wd [N],   --write-delay N Enable write delay. N Number of microseconds to delay between writes.\n");
 	fprintf(stdout,"\n");
+	fprintf(stdout,"\n");
+	printSupportedEEPROMs();
 }
 
 /* Prints version number */

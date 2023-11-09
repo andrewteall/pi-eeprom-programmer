@@ -135,6 +135,28 @@ Options:
  -wb ADDRESS DATA, --write-byte ADDRESS DATA 
                             Write specified DATA to ADDRESS.
  -wd [N],   --write-delay N Enable write delay. N Number of microseconds to delay between writes.
+
+
+ Supported and tested Models:
+        Note that the program may work if your EEPROM uses a similar pinout and
+        voltages to the ones listed.
+ Model       Size(B)  Addr Len  Data Len   Write Cycle(uS)  Page Size(B) Address Size(B)
+----------------------------------------------------------------------------------------
+xl2816        2048       10         8          10000            -1            -1
+xl28c16       2048       10         8          10000            -1            -1
+at28c16       2048       10         8           5000            -1            -1
+at28c64       8192       12         8          10000            -1            -1
+at28c256     32768       14         8           1000            -1            -1
+at24c01        128        7         8           5000             8             1
+at24c02        256        8         8           5000             8             1
+at24c04        512        9         8           5000            16             2
+at24c08       1024       10         8           5000            16             2
+at24c16       2048       11         8           5000            16             2
+at24c32       4096       12         8           5000            32             2
+at24c64       8192       13         8           5000            32             2
+at24c128     16384       14         8           5000            64             2
+at24c256     32768       15         8           5000            64             2
+at24c512     65536       16         8           5000           128             2
  ```
 
  ## __Features, Bugs, and Contributing__
