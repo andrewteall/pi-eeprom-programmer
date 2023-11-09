@@ -10,7 +10,7 @@ const char *LOGLEVELSTRINGSPACERS[] = {"","\t ", "\t ", " ", "\t ", "\t ",};
 /* Static global Logging Level to track verbosity across the program */
 static int loggingLevel = WARNING;
 
-/* Logging method to supprot filtering out logs by verbosity */
+/* Logging method to support filtering out logs by verbosity */
 void ulog(int verbosity, const char* logMessage,...) {
 	if (verbosity <= loggingLevel){
 		char logBuf[120];
@@ -22,7 +22,7 @@ void ulog(int verbosity, const char* logMessage,...) {
 	}
 }
 
-/* Sets the LoggingLevel to the specified newLogLevel. Fails and returns 1 if 
+/* Sets the LoggingLevel to the specified newLogLevel. Fails and returns -1 if 
    an invalid newLogLevel is passed. Otherwise, returns 0. */
 int setLoggingLevel(int newLogLevel){
 	if( newLogLevel < DEBUG || newLogLevel > OFF){
@@ -31,7 +31,7 @@ int setLoggingLevel(int newLogLevel){
 		return 0;
 	} else {
 		ulog(ERROR,"Invalid Logging Level. Log Level could not be set.");
-		return 1;
+		return -1;
 	}
 }
 
