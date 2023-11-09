@@ -326,12 +326,6 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 		return -1;
 	}
 	if (eeprom->model >= AT24C01 && eeprom->model <= AT24C256){
-		eeprom->fd = setupI2C(eeprom->i2cId);
-		if(eeprom->fd == -1){
-			ulog(ERROR,"Cannot setup I2C device");
-			cleanupGPIO(&gpioConfig->gpioChip);
-			return -1;
-		}
 								// 2; // 8 // 3 // I2C Pins 
 								// 3; // 9 // 5 // I2C Pins
 
@@ -356,6 +350,13 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 		setPinMode(gpioConfig,eeprom->vccPin, OUTPUT);
 		setPinLevel(gpioConfig,eeprom->writeProtectPin, HIGH);
 		setPinLevel(gpioConfig,eeprom->vccPin, HIGH);
+
+		eeprom->fd = setupI2C(eeprom->i2cId);
+		if(eeprom->fd == -1){
+			ulog(ERROR,"Cannot setup I2C device");
+			cleanupGPIO(&gpioConfig->gpioChip);
+			return -1;
+		}
 
 	} else {
 							/*   GPIO // WiPi // Pin   */ 
