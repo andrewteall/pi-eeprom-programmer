@@ -1,7 +1,6 @@
 #ifndef GPIO_H
     #define GPIO_H 1
-    #include <gpiod.h>
-    
+
     /**
      * @brief Levels used by GPIO.
      */
