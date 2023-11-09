@@ -97,7 +97,7 @@ void setDataPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char dat
 }
 
 /* Poll device or wait until write cycle finishes */
-int finishWriteCycle(struct EEPROM* eeprom){
+int finishWriteCycle(struct EEPROM* eeprom, struct GPIO_CONFIG* gpioConfig, int dataToCheck){
 	// Finish Write Cycle
 	if(eeprom->useWriteCyclePolling){
 		// Dummy write to wait for Ack from write
@@ -106,8 +106,11 @@ int finishWriteCycle(struct EEPROM* eeprom){
 				;;
 			}
 		} else {
-			// TODO: Implement Parallel EEPROM polling
-			usleep(eeprom->writeCycleTime);
+			setPinMode(gpioConfig,eeprom->dataPins[7], INPUT);
+			setPinLevel(gpioConfig,eeprom->outputEnablePin,LOW);
+			while(getPinLevel(gpioConfig,eeprom->dataPins[7]) ^ (dataToCheck >> 7)){
+				;;
+			}
 		}
 		return 0;
 	} else {
@@ -136,7 +139,8 @@ int setBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int 
 		setPinLevel(gpioConfig,eeprom->writeEnablePin,LOW);
 		usleep(1);
 		setPinLevel(gpioConfig,eeprom->writeEnablePin,HIGH);
-		finishWriteCycle(eeprom);
+		
+		finishWriteCycle(eeprom,gpioConfig,data[j]);
 	}
 	return 0;
 }
@@ -220,7 +224,7 @@ int setBytesI2C(struct EEPROM* eeprom, int addressToWrite, char* data, int numBy
 
 	// Do the write
 	int numBytesWritten = writeI2C(eeprom->fd, buf, bufSize);
-	finishWriteCycle(eeprom);
+	finishWriteCycle(eeprom,NULL,0);
 	return numBytesWritten;
 }
 

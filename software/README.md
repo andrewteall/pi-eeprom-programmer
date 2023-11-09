@@ -22,8 +22,6 @@ See [Flags](../README.md#command-line-options)
 ## __Quirks__
 Right now the -d. --dump, -r, and --read flags don't need a format. A warning will be printed but can be ignored as the EEPROM dump will still be pretty printed.
 
-Because we're doing everything in software and not using a real time OS we only poll I2C EEPROMs. For Parallel EEPROMs we wait the entire write cycle as indicated by the datasheet. This is something I may revisit in the future.
-
 ## __Updating__
 Updates can be performed by just running
 ```sh
