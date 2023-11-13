@@ -18,7 +18,7 @@ void ulog(int verbosity, const char* logMessage,...) {
 		va_start(args, logMessage);
 		vsnprintf(logBuf,sizeof(logBuf),logMessage, args);
 		va_end(args);
-    	fprintf(stdout,"%s:%s%s\n", LOGLEVELSTRINGS[verbosity],LOGLEVELSTRINGSPACERS[verbosity], logBuf);
+    	fprintf(stderr,"%s:%s%s\n", LOGLEVELSTRINGS[verbosity],LOGLEVELSTRINGSPACERS[verbosity], logBuf);
 	}
 }
 
