@@ -25,8 +25,8 @@ const int EEPROM_MODEL_SIZE[] = 	{
 									};
 
 const int EEPROM_ADDRESS_LENGTH[] = {	
-									10,10,
-									10,12,14,
+									11,11,
+									11,13,15,
 									7,8,9,10,11,
 									12,13,14,15,16
 									};
@@ -80,7 +80,7 @@ void setPinMode(struct GPIO_CONFIG* gpioConfig, int pin, int mode){
 
 /* Set Address eeprom to value to read from or write to */
 void setAddressPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToSet){
-	for (char pin = 0;pin<=eeprom->maxAddressLength;pin++){
+	for (char pin = 0; pin < eeprom->maxAddressLength; pin++){
 		if (!((eeprom->model == AT28C64) && ((pin == 13) || (pin == 14)))){
 			setPinLevel(gpioConfig,eeprom->addressPins[(int)pin],(addressToSet & 1));
 			addressToSet >>= 1;
@@ -90,7 +90,7 @@ void setAddressPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int a
 
 /* Set Data eeprom to value to write */
 void setDataPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char dataToSet){
-	for (char pin = 0;pin<eeprom->maxDataLength;pin++){
+	for (char pin = 0; pin < eeprom->maxDataLength; pin++){
 		setPinLevel(gpioConfig,eeprom->dataPins[(int)pin],(dataToSet & 1));
 		dataToSet >>= 1;
 	}
@@ -247,20 +247,21 @@ int setupFileToRead(FILE *romFile, int startValue){
 /* Get the next set of Data from a text file formatted rom */
 int getNextFromTextFile(struct EEPROM *eeprom, FILE *romFile){
 	int c;
-	int addressLength = 0;
-	char textFileAddress[(sizeof(int)*8)+1];
+	int strLen = 0;
+	char textFileString[(sizeof(int)*8)+1];
 	
-	while((c = fgetc(romFile)) != EOF && addressLength != sizeof(int)*8 && c != '\n' && c != ' ' && c != ':'){
+	while((c = fgetc(romFile)) != EOF && strLen != sizeof(int)*8 && c != '\n' && c != ' ' && c != ':'){
+		// Will skip characters that are not '1' or '0'
 		if(c == '1' || c == '0'){
-			textFileAddress[addressLength++] = c;
+			textFileString[strLen++] = c;
 		}
 	}
 	
-	textFileAddress[addressLength++] = 0;
+	textFileString[strLen++] = 0;
 	if(c == EOF){
 		return -1;
 	} else {
-		return binStr2num(textFileAddress);
+		return binStr2num(textFileString);
 	}
 }
 
@@ -406,7 +407,7 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 		for(int i=0;i<eeprom->maxAddressLength;i++){
 			if ((eeprom->model == AT28C64) && ((i == 13) || (i == 14))){
 				// handle NC pins
-				setPinMode(gpioConfig,eeprom->addressPins[i], INPUT);	
+				setPinMode(gpioConfig,eeprom->addressPins[i], INPUT);
 			} else {
 				// ulog(DEBUG,"Setting Mode for Pin: %i",i);
 				setPinMode(gpioConfig,eeprom->addressPins[i], OUTPUT);	
@@ -490,11 +491,16 @@ int writeTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom,
 	int err = 0;
 	int address = 0;
 	int data = 0;
-	while(address < eeprom->limit && address >= eeprom->startValue && address != -1 && data != -1){
+	while(address < eeprom->limit && address != -1 && data != -1){
 		address = getNextFromTextFile(eeprom, romFile);
 		data = getNextFromTextFile(eeprom, romFile);
-		if(address != -1 && data != -1){
-			err |= writeByteToAddress(gpioConfig, eeprom, address, data);
+		if(address < eeprom->limit && address >= eeprom->startValue){
+			if(address != -1 && data != -1){
+				err |= writeByteToAddress(gpioConfig, eeprom, address, data);
+			} else {
+				ulog(ERROR,"Cannot process text file");
+				return -1;
+			}
 		}
 	}
 	return err;
@@ -505,14 +511,19 @@ int compareTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eepro
 	int address = 0;
 	int data = 0;
 	int bytesNotMatched = 0;
-	while(address < eeprom->limit && address >= eeprom->startValue && address != -1 && data != -1){
+	while(address < eeprom->limit && address != -1 && data != -1){
 		address = getNextFromTextFile(eeprom, romFile);
 		data = getNextFromTextFile(eeprom, romFile);
-		if(address != -1 && data != -1){
-			int byte = readByteFromAddress(gpioConfig, eeprom, address);
-			if (byte != data){
-				ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i",address,byte,data);
-				bytesNotMatched++;
+		if(address < eeprom->limit && address >= eeprom->startValue ){
+			if(address != -1 && data != -1){
+				int byte = readByteFromAddress(gpioConfig, eeprom, address);
+				if (byte != data){
+					ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i",address,byte,data);
+					bytesNotMatched++;
+				}
+			} else {
+				ulog(ERROR,"Cannot process text file");
+				return -1;
 			}
 		}
 	}
@@ -575,7 +586,7 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 	}
 	
 	switch (format) {
-	case 0:
+	case 3: // labeled
 		for (int i=eeprom->startValue;i<eeprom->limit;i++){
 			fprintf(stdout,"Address: %i     Data: %i \n",i,readByteFromAddress(gpioConfig, eeprom,i));
 		}
@@ -591,11 +602,15 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 		break;
 	case 2: // text
 		for (int i=eeprom->startValue;i<eeprom->limit;i++) {
-			char addressBinStr[eeprom->maxAddressLength+2];
+			char addressBinStr[eeprom->maxAddressLength+1];
 			char dataBinStr[eeprom->maxDataLength+1];
 
-			num2binStr(addressBinStr,i,eeprom->maxAddressLength+1);
-			num2binStr(dataBinStr,readByteFromAddress(gpioConfig, eeprom,i),eeprom->maxDataLength);
+			if(num2binStr(i, addressBinStr, eeprom->maxAddressLength+1) == (char*)-1){
+				ulog(WARNING,"String Buffer not large enough to hold number: %i",i);
+			}
+			if(num2binStr(readByteFromAddress(gpioConfig, eeprom,i), dataBinStr,eeprom->maxDataLength+1) == (char*)-1){
+				ulog(WARNING,"String Buffer not large enough to hold number: %i",i);
+			}
 			if ( eeprom->startValue < 0x100 && eeprom->limit < 0x100){
 				char shortAddressBinStr[9];
 				strncpy(shortAddressBinStr,&addressBinStr[8],8);
@@ -606,7 +621,7 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 		}
 		break;
 
-	case 3: // pretty
+	case 0: // pretty
 	default:
 		if ((eeprom->startValue % 16) != 0){
 			eeprom->startValue = eeprom->startValue - ((eeprom->startValue % 16));
@@ -665,7 +680,7 @@ void printHelp(){
 	fprintf(stdout,"Options:\n");
 	fprintf(stdout," -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.\n");
 	fprintf(stdout,"            --chipname      Specify the chipname to use. Default: gpiochip0\n");
-	fprintf(stdout," -d [N],    --dump [N]      Dump the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY\n");
+	fprintf(stdout," -d [N],    --dump [N]      Dump the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY\n");
 	fprintf(stdout," -f,        --force         Force writing of every byte instead of checking for existing value first.\n");
 	fprintf(stdout," -id,       --i2c-device-id The address id of the I2C device.\n");
 	fprintf(stdout," -h,        --help          Print this message and exit.\n");
@@ -673,7 +688,7 @@ void printHelp(){
 	fprintf(stdout," -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.\n");
 	fprintf(stdout,"            --no-validate-write \n");
 	fprintf(stdout,"                            Do not perform a read directly after writing to verify the data was written.\n");
-	fprintf(stdout," -r [N],    --read [N]      Read the contents of the EEPROM, 0=LABELED, 1=BINARY, 2=TEXT, 3=PRETTY. Default: PRETTY\n");
+	fprintf(stdout," -r [N],    --read [N]      Read the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY\n");
 	fprintf(stdout," -rb N,     --read-byte ADDRESS \n");
 	fprintf(stdout,"                            Read From specified ADDRESS.\n");
 	fprintf(stdout," -s N,      --start N       Specify the minimum address to operate.\n");
@@ -702,7 +717,7 @@ void setDefaultOptions(struct OPTIONS* options){
     options->filename = NULL;
 	options->limit = -1;
     options->startValue = 0;
-    options->dumpFormat = 3;
+    options->dumpFormat = 0;
     options->validateWrite = 1;
     options->force = 0;
     options->action = NOTHING;
@@ -797,13 +812,13 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
 					ulog(INFO,"Dumping EEPROM to standard out");
-					int format = 3;
+					int format = 0;
 					if (i != argc-1) {
-						format = str2numOptionalLog(argv[i+1], 1);
+						format = str2num(argv[i+1]);
 						i++;
 					}
 					if(format == -1 || format > 3){
-						options->dumpFormat = 3;
+						options->dumpFormat = 0;
 					} else {
 						options->dumpFormat = format;
 					}
@@ -832,14 +847,13 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 					ulog(ERROR,"%s Flag must have an id specified",argv[i]);
 					return -1;
 				}
-				
 			}
 
 			// -l --limit
 			if (!strcmp(argv[i],"-l") || !strcmp(argv[i],"--limit")){
 				if (i != argc-1) {
+					ulog(INFO,"Setting limit to %s",argv[i+1]);
 					options->limit = str2num(argv[i+1]);
-					ulog(INFO,"Setting limit to %i",options->limit);
 					if ( options->limit== -1){
 						ulog(ERROR,"Unsupported limit value");
 						return -1;
@@ -939,8 +953,8 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 				ulog(INFO,"Using Write Cycle Delay instead of Polling");
 				options->useWriteCyclePolling = 0;
 				if (i != argc-1) {
-					options->writeCycleUSec = str2numOptionalLog(argv[i+1], 1);
-					if ( options->writeCycleUSec != -1){
+					options->writeCycleUSec = str2num(argv[i+1]);
+					if ( options->writeCycleUSec != -1 && options->writeCycleUSec != 0 ){
 						ulog(INFO,"Setting write cycle delay time to %i",options->writeCycleUSec);
 					}
 				}
