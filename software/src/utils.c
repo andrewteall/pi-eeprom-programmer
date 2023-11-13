@@ -1,123 +1,53 @@
-#include <string.h>
-
-#include "utils.h"
-#include "ulog.h"
+#include <stdlib.h>
 
 /* Converts a number to a binary String */
-char* num2binStr(char* binStrBuf, int num, int strBufLen){
-    for (int i=strBufLen-1;i>=0;i--){
+char* num2binStr(int num, char* binStrBuf, int strBufLen){
+    for (int i=strBufLen-2; i >= 0; i--){
 		binStrBuf[i] = (char)((num%2)+0x30);
 		num >>= 1;
     }
-	if(num !=0){
-		ulog(ERROR,"String Buffer not large enough to hold number: %i",num);
+	if(num != 0){
 		return (char*) -1;
 	}
-    binStrBuf[strBufLen] = 0;
+    binStrBuf[strBufLen-1] = 0;
     return binStrBuf;
 }
 
-/* Converts a binary string to a number. Will skip characters that are not '1' or '0' */
+/* Converts a binary string to a number. */
 int binStr2num(char *binStr){
-	int num = 0, numSize = 0;
-	for (int i=strlen(binStr)-1,j=0;i>=0;i--,j++){
-		if (binStr[i] == '1' || binStr[i] == '0'){
-			if (numSize < strlen(binStr) && numSize < 32){
-				num += (binStr[i]-48)*(1 << j);
-				numSize++;
-			} else {
-				ulog(ERROR,"Number out of Range");
-				num = -1;
-				i = -1;
-			}
-		}
+	char* indexPtr;
+	long num = strtol(binStr, &indexPtr, 2);
+	if (*indexPtr != '\0' || num < 0){
+		num = -1;
 	}
-	return num;
-}
-int str2num(char *numStr){
-	return str2numOptionalLog(numStr, 0);
+	return (int)num;
 }
 
 /* Converts a number string to a number */
-int str2numOptionalLog(char *numStr, int supressLog){
-	int num = 0;
-	int numSize = 0;
-	for (int i=strlen(numStr)-1,j=0;i>=0;i--){
-		if ((numStr[0] == '0' && (numStr[1] == 'x' || numStr[1] == 'X')) || numStr[0] == '$'){ 
-			// convert hexidecimal number
-			int limit = 2;
-			if(numStr[0] == '$'){
-				limit = 1;
-			}
-			if(!(i < limit) ){
-				if ((numStr[i] >= '0' && numStr[i] <= '9') || (numStr[i] >= 'A' && numStr[i] <= 'F') \
-					|| (numStr[i] >= 'a' && numStr[i] <= 'f') ){
-					if (numStr[i] >= 'A' && numStr[i] <= 'F') {
-						num += (numStr[i]-0x37)*(expo(16 , j++));
-					} else if (numStr[i] >= 'a' && numStr[i] <= 'f'){
-						num += (numStr[i]-0x57)*(expo(16 , j++));
-					} else {
-						num += (numStr[i]-0x30)*(expo(16 , j++));
-					}
-				} else {
-					if(!supressLog){
-						ulog(DEBUG,"Not a valid hexidecimal number");
-					}
-					num = -1;
-					i = -1;
-				}
-			}
-		} else if ((numStr[0] == '0' && (numStr[1] == 'b' || numStr[1] == 'B')) || numStr[0] == '%'){
-			// convert binary number
-			int limit = 2;
-			if(numStr[0] == '%'){
-				limit = 1;
-			}
+int str2num(char *numStr){
+	char* indexPtr;
+	int index = 0;
+	int base = 10;
 
-			if(!(i < limit) ){
-				if(numStr[i] == '0' || numStr[i] == '1'){
-					num += (numStr[i]-48)*(1 << j++);
-					numSize++;
-				} else {
-					if(!supressLog){
-						ulog(DEBUG,"Not a valid binary number");
-					}
-					num = -1;
-					i = -1;
-				}
-			}
-		} else { 
-			// convert decimal number
-			if (numStr[i] >= '0' && numStr[i] <= '9'){
-				num += (numStr[i]-0x30)*(expo(10 , j++));
-			} else {
-				if(!supressLog){
-					ulog(DEBUG,"Not a valid decimal number");
-				}
-				num = -1;
-				i = -1;
-			}
+	if ((numStr[0] == '0' && (numStr[1] == 'x' || numStr[1] == 'X')) || numStr[0] == '$'){ 
+		// convert hexidecimal number
+		index = 2;
+		if(numStr[0] == '$'){
+			index = 1;
 		}
-		if (num < 0) {
-			if(!supressLog){
-				ulog(ERROR,"Number out of Range");
-			}
-			num = -1;
-			i = -1;
-		}	
+		base = 16;
+	} else if ((numStr[0] == '0' && (numStr[1] == 'b' || numStr[1] == 'B')) || numStr[0] == '%'){
+		// convert binary number
+		index = 2;
+		if(numStr[0] == '%'){
+			index = 1;
+		}
+		base = 2;
 	}
-	return num;
-}
 
-/* Exponent function */
-long expo(int base, int power){
-	int result = base;
-	if (power == 0){
-		result = 1;
-	} else {
-		for (int i = 1; i < power; i++){
-			result *= base;
-		}
+	long num = strtol(numStr+index, &indexPtr, base);
+	if (*indexPtr != '\0' || num < 0){
+		num = -1;
 	}
-    return result;
+	return (int)num;
 }

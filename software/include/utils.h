@@ -3,12 +3,12 @@
 
     /**
      * @brief Converts a number to it's corresponding binary string.
-     * @param *binStrBuf The buffer to store the converted string.
      * @param num The number to convert.
+     * @param *binStrBuf The buffer to store the converted string.
      * @param strLenBuf Size of the binStrBuf buffer.
      * @return char* The pointer to the buffer of the converted number.
      */
-    char* num2binStr(char* binStrBuf, int num, int strBufLen);
+    char* num2binStr(int num, char* binStrBuf, int strBufLen);
 
     /**
      * @brief Converts a binary string to it's corresponding value.
@@ -23,21 +23,5 @@
      * @return int The resulting number of the conversion. -1 if error.
      */
     int str2num(char *numStr);
-
-    /**
-     * @brief Converts a string to it's corresponding value.
-     * @param numStr The string to convert
-     * @param supressLog Enable or Disbale logging of the function
-     * @return int The resulting number of the conversion. -1 if error.
-     */
-    int str2numOptionalLog(char *numStr, int supressLog);
-
-    /**
-     * @brief Performs exponentiation of two numbers.
-     * @param base The number to be exponentiated
-     * @param power The exponent
-     * @return long The result of the performed calculation.
-     */
-    long expo(int base, int power);
-
+    
 #endif
