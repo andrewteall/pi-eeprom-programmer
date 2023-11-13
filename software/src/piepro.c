@@ -614,9 +614,9 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 			if ( eeprom->startValue < 0x100 && eeprom->limit < 0x100){
 				char shortAddressBinStr[9];
 				strncpy(shortAddressBinStr,&addressBinStr[8],8);
-				fprintf(stdout,"%s %s \n", shortAddressBinStr,dataBinStr);
+				fprintf(stdout,"%s %s\n", shortAddressBinStr,dataBinStr);
 			} else {
-				fprintf(stdout,"%s %s \n",addressBinStr,dataBinStr);
+				fprintf(stdout,"%s %s\n",addressBinStr,dataBinStr);
 			}
 		}
 		break;
