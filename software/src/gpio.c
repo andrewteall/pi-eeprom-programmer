@@ -255,7 +255,7 @@ char* readI2C(int fd, char* buf, int numBytesToRead, int addressSize){
         ulog(ERROR,"Error reading byte(s) via I2C");
         return (char*) -1;
     }
-    int bytesRead = read(fd,buf,1);
+    int bytesRead = read(fd,buf,numBytesToRead);
     if(bytesRead == -1){
         buf[0] = bytesRead;
         ulog(ERROR,"Error reading byte(s) via I2C");
