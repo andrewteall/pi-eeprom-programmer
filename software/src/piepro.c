@@ -279,7 +279,6 @@ void setEEPROMParameters(struct OPTIONS* options, struct EEPROM* eeprom){
 
 	eeprom->useWriteCyclePolling = options->useWriteCyclePolling;
 	
-
 	eeprom->size = EEPROM_MODEL_SIZE[options->eepromModel];
 	eeprom->maxAddressLength = EEPROM_ADDRESS_LENGTH[options->eepromModel];
 	eeprom->maxDataLength = (EEPROM_DATA_LENGTH[options->eepromModel]);
@@ -644,6 +643,16 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 	}
 }
 
+/* Open and write a binary file to the EEPROM */
+int eraseEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char eraseByte){
+	int err = 0;
+	
+	for(int i = eeprom->startValue; i < eeprom->limit; i++) {
+		err |= writeByteToAddress(gpioConfig, eeprom, i, eraseByte);
+	}
+	return err;
+}
+
 /* Free and release hardware */
 void cleanupHardware(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom){
 	cleanupGPIO(&gpioConfig->gpioChip);
@@ -681,6 +690,7 @@ void printHelp(){
 	fprintf(stdout," -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.\n");
 	fprintf(stdout,"            --chipname      Specify the chipname to use. Default: gpiochip0\n");
 	fprintf(stdout," -d [N],    --dump [N]      Dump the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY\n");
+	fprintf(stdout," -e [N],    --erase [N]     Erase eeprom with specified byte. Default: 0xFF\n");
 	fprintf(stdout," -f,        --force         Force writing of every byte instead of checking for existing value first.\n");
 	fprintf(stdout," -id,       --i2c-device-id The address id of the I2C device.\n");
 	fprintf(stdout," -h,        --help          Print this message and exit.\n");
@@ -726,6 +736,7 @@ void setDefaultOptions(struct OPTIONS* options){
     options->writeCycleUSec = -1;
 	options->useWriteCyclePolling = 1;
 	options->boardType = RPI4;
+	options->eraseByte = 0xFF;
 	// Single Read/Write Parameters
     options->addressParam = 0;
     options->dataParam = 0;
@@ -823,6 +834,21 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 						options->dumpFormat = format;
 					}
 					options->action = DUMP_ROM;
+				}
+			}
+
+			// -e --erase
+			if (!strcmp(argv[i],"-e") || !strcmp(argv[i],"--erase")){
+				if (options->action != ERASE_ROM && options->action != NOTHING){
+					ulog(WARNING, \
+						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+				} else {
+					if (i != argc-1) {
+						options->eraseByte = str2num(argv[i+1]);
+						i++;
+					}	
+					ulog(INFO,"Erasing EEPROM with 0x%02x", options->eraseByte );
+					options->action = ERASE_ROM;
 				}
 			}
 

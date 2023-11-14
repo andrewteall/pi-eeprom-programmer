@@ -115,6 +115,7 @@ Options:
  -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.
             --chipname      Specify the chipname to use. Default: gpiochip0
  -d [N],    --dump [N]      Dump the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY
+ -e [N],    --erase [N]     Erase eeprom with specified byte. Default: 0xFF
  -f,        --force         Force writing of every byte instead of checking for existing value first.
  -id,       --i2c-device-id The address id of the I2C device.
  -h,        --help          Print this message and exit.

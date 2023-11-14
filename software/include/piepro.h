@@ -38,6 +38,7 @@
                         COMPARE_FILE_TO_ROM,
                         WRITE_SINGLE_BYTE_TO_ROM,
                         READ_SINGLE_BYTE_FROM_ROM,
+                        ERASE_ROM,
                         DUMP_ROM
                         };
 
@@ -98,6 +99,7 @@
         char* consumer;
         char* chipname;
         int numGPIOLines;
+        char eraseByte;
         };  
 
     /**
@@ -200,6 +202,15 @@
      * @param format The format to print the EEPROM contents.
      */
     void printEEPROMContents(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, int format);
+
+    /**
+     * @brief Writes a byte to a specified address.
+     * @param *gpioChip A pointer to the GPIO_CONFIG struct to reference gpio chip to be used.
+     * @param *eeprom A eeprom struct that contains the eeprom info.
+     * @param eraseByte Byte used to erase EEPROM.
+     * @return int Returns 0 if successful -1 if error.
+     */
+    int eraseEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char eraseByte);
 
     /**
      * @brief Releases and frees GPIO hardware.

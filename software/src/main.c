@@ -54,6 +54,16 @@ int main(int argc, char *argv[]){
             case DUMP_ROM:
                 printEEPROMContents(&gpioConfig, &eeprom, options.dumpFormat);
                 break;
+            case ERASE_ROM:
+                error = eraseEEPROM(&gpioConfig, &eeprom, options.eraseByte);
+                if(error == 0) {
+                    fprintf(stdout,"Sucessfully Erased %i bytes in EEPROM with 0x%02x\n", \
+                                                                eeprom.byteWriteCounter, options.eraseByte);
+                } else {
+                    error = -1;
+                    fprintf(stdout,"Unable to completely erase EEPROM with 0x%02x\n", options.eraseByte);
+                }
+                break;
             case WRITE_SINGLE_BYTE_TO_ROM:
                 error = writeByteToAddress(&gpioConfig, &eeprom, options.addressParam, options.dataParam);
                 if(!error){
