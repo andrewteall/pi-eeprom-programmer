@@ -209,6 +209,12 @@
     void cleanupHardware(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom);
 
     /**
+     * @brief Sets default options to configure program
+     * @param *options The struct of options to use
+    */
+    void setDefaultOptions(struct OPTIONS* options);
+
+    /**
      * @brief Parses all the command line Arguments and sets the appropriate options
      *        in the OPTIONS struct.
      * @param options A pointer to the OPTIONS struct to store all the configured
