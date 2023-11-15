@@ -284,6 +284,7 @@ void setEEPROMParameters(struct OPTIONS* options, struct EEPROM* eeprom){
 	eeprom->maxDataLength = (EEPROM_DATA_LENGTH[options->eepromModel]);
 	eeprom->pageSize = EEPROM_PAGE_SIZE[options->eepromModel];
 	eeprom->addressSize = EEPROM_ADDRESS_SIZE[options->eepromModel];
+	eeprom->quick = options->quick;
 	
 	if( options->writeCycleUSec == -1){
 		eeprom->writeCycleTime = EEPROM_WRITE_CYCLE_USEC[options->eepromModel];
@@ -430,9 +431,46 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 	return 0;
 }
 
+/* Read specified number of bytes starting from specified Address */
+char* readNumBytesFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char* byteBuffer, \
+																				int addressToRead, int bytesToRead){
+	if(addressToRead > eeprom->size-1){
+		ulog(ERROR,"Address out of range of EEPROM: 0x%02x plus 0x%02x bytes", addressToRead, bytesToRead);
+		return (char*)-1;
+	}
+
+	if(addressToRead+bytesToRead-1 > eeprom->size-1){
+		bytesToRead = ((eeprom->size-1) - addressToRead) + 1;
+		ulog(WARNING,"Addresses requested exceeds eeprom size. Only reading %i bytes",bytesToRead);
+	}
+
+	if (eeprom->type == I2C){
+		setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
+		getBytesI2C(eeprom,addressToRead,bytesToRead,byteBuffer);
+	} else {
+		// getBytesParallel(gpioConfig,eeprom,addressToRead,1,byteBuffer);
+	}
+	
+	// return the buffer
+	return byteBuffer;
+}
+
 /* Read byte from specified Address */
 int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead){
 	int byteVal = 0;
+
+	// int size = 2;
+	// char buffer[size + eeprom->addressSize];
+	// memset(buffer,'0',size+eeprom->addressSize);
+	// readNumBytesFromAddress(gpioConfig, eeprom, buffer, addressToRead,size);
+	// for(int i=0; i<size;i++){
+	// 	printf("0x%02x ",buffer[i]);
+	// 	if( (i+1) % 16 == 0 ){
+	// 		printf("\n");        
+	// 	}
+	// }
+	// printf("\n");
+
 	if(addressToRead > eeprom->size-1){
 		ulog(ERROR,"Address out of range of EEPROM: 0x%02x",addressToRead);
 		return -1;
@@ -447,6 +485,45 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, i
 	return byteVal;
 }
 
+/* Write specified number of bytes starting from specified Address */
+int writeNumBytesToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char* byteBuffer, \
+																				int addressToWrite, int numBytesToWrite){
+	int numBytesWritten = 0;
+	if(addressToWrite > eeprom->size-1){
+		ulog(ERROR,"Address out of range of EEPROM: 0x%02x plus 0x%02x bytes", addressToWrite, numBytesToWrite);
+		return -1;
+	}
+	
+	if(addressToWrite+numBytesToWrite-1 > eeprom->size-1){
+		numBytesToWrite = ((eeprom->size-1) - addressToWrite) + 1;
+		ulog(WARNING,"Addresses requested exceeds eeprom size. Only writing %i bytes",numBytesToWrite);
+	}
+
+	if(addressToWrite+numBytesToWrite-1 > eeprom->limit-1){
+		numBytesToWrite = ((eeprom->limit-1) - addressToWrite) + 1;
+	}
+
+	int maxBytesToWrite = eeprom->pageSize-(addressToWrite%eeprom->pageSize);
+	if(maxBytesToWrite < numBytesToWrite){
+		numBytesToWrite = maxBytesToWrite;
+		ulog(DEBUG,"Addresses requested crosses page boundary. Only writing %i bytes",numBytesToWrite);
+	}
+
+	if (eeprom->type == I2C){
+		setPinLevel(gpioConfig,eeprom->writeProtectPin,LOW);
+		numBytesWritten = setBytesI2C(eeprom,addressToWrite,byteBuffer,numBytesToWrite);
+		if(numBytesWritten != -1){
+			eeprom->byteWriteCounter += numBytesWritten-eeprom->addressSize;
+		}
+	} else {
+		// setBytesParallel(gpioConfig,eeprom,addressToWrite,numBytesToWrite,byteBuffer);
+	}
+	if(numBytesWritten-eeprom->addressSize != numBytesToWrite){
+		numBytesWritten = -1;
+	}
+	return numBytesWritten-eeprom->addressSize;
+}
+
 /* Write specified byte to specified address */
 int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char dataToWrite){
 	int err = 0;
@@ -455,7 +532,7 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 		return -1;
 	}
 	if (eeprom->type == I2C){
-		if (eeprom->forceWrite || dataToWrite != getByteI2C(eeprom,addressToWrite)){
+		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom,addressToWrite)){
 			setPinLevel(gpioConfig,eeprom->writeProtectPin,LOW);
 			if (setByteI2C(eeprom, addressToWrite, dataToWrite) != -1){
 				ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
@@ -647,10 +724,33 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 int eraseEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char eraseByte){
 	int err = 0;
 	
-	for(int i = eeprom->startValue; i < eeprom->limit; i++) {
-		err |= writeByteToAddress(gpioConfig, eeprom, i, eraseByte);
+	if(eeprom->startValue >= eeprom->size){
+			return -1;
+	}
+	if(eeprom->quick){
+		int numBytesToWrite = eeprom->pageSize;
+		if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
+			numBytesToWrite = eeprom->limit-eeprom->startValue;
+		}
+		char bytesToWriteBuf[numBytesToWrite];
+		memset(bytesToWriteBuf,eraseByte,numBytesToWrite);
+		
+		int addressToWrite = eeprom->startValue;
+		while(addressToWrite < eeprom->limit && err != -1){
+			int bytesWriten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, numBytesToWrite);
+			if( bytesWriten != -1){
+				addressToWrite += bytesWriten;
+			} else{
+				err = -1;
+			}
+		}
+	} else {
+		for(int i = eeprom->startValue; i < eeprom->limit; i++) {
+			err |= writeByteToAddress(gpioConfig, eeprom, i, eraseByte);
+		}
 	}
 	return err;
+
 }
 
 /* Free and release hardware */
@@ -699,6 +799,9 @@ void printHelp(){
 	fprintf(stdout,"            --no-validate-write \n");
 	fprintf(stdout,"                            Do not perform a read directly after writing to verify the data was written.\n");
 	fprintf(stdout," -r [N],    --read [N]      Read the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY\n");
+	fprintf(stdout," -rb N,     --read-byte ADDRESS\n"); 
+	fprintf(stdout,"                            Read From specified ADDRESS.\n"); 
+	fprintf(stdout," -q,        --quick         Operates on multiple bytes at once. Implied --force.\n");
 	fprintf(stdout," -rb N,     --read-byte ADDRESS \n");
 	fprintf(stdout,"                            Read From specified ADDRESS.\n");
 	fprintf(stdout," -s N,      --start N       Specify the minimum address to operate.\n");
@@ -745,6 +848,7 @@ void setDefaultOptions(struct OPTIONS* options){
 	options->consumer = consumer;
     options->chipname = chipname;
     options->numGPIOLines = 28;
+	options->quick = 0;
 }
 
 /* Parses and processes all command line arguments */
@@ -935,6 +1039,12 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 					ulog(ERROR,"%s Flag must have a value specified",argv[i]);
 					return -1;
 				}
+			}
+
+			// -q --quick
+			if (!strcmp(argv[i],"-q") || !strcmp(argv[i],"--quick")){
+					ulog(INFO,"Using quick operations. Implied --force.");
+					options->quick = 1;
 			}
 
 			// -s --start

@@ -126,6 +126,7 @@ Options:
  -r [N],    --read [N]      Read the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY
  -rb N,     --read-byte ADDRESS 
                             Read From specified ADDRESS.
+ -q,        --quick         Operates on multiple bytes at once. Implied --force.
  -s N,      --start N       Specify the minimum address to operate.
  -t,        --text          Interpret file as a text. Default: binary
                             Text File format:

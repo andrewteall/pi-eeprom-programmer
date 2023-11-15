@@ -55,7 +55,15 @@ int main(int argc, char *argv[]){
                 printEEPROMContents(&gpioConfig, &eeprom, options.dumpFormat);
                 break;
             case ERASE_ROM:
-                error = eraseEEPROM(&gpioConfig, &eeprom, options.eraseByte);
+                printf("Are you sure you want to erase the EEPROM? y/N\n");
+                char confirmation = getchar();  
+                
+                if(confirmation == 'y' || confirmation == 'Y'){
+                    error = eraseEEPROM(&gpioConfig, &eeprom, options.eraseByte);
+                } else {
+                    printf("Aborting erase operation.\n");
+                    break;
+                }
                 if(error == 0) {
                     fprintf(stdout,"Sucessfully Erased %i bytes in EEPROM with 0x%02x\n", \
                                                                 eeprom.byteWriteCounter, options.eraseByte);

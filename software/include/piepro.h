@@ -100,6 +100,7 @@
         char* chipname;
         int numGPIOLines;
         char eraseByte;
+        int quick;
         };  
 
     /**
@@ -132,6 +133,7 @@
         char writeProtectPin;
         int pageSize;
         int addressSize;
+        int quick;
 
         // Info
         int model;
