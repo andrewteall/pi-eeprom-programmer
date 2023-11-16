@@ -44,6 +44,9 @@ int main(int argc, char *argv[]){
                     int bytesNotMatched = compareFileToEEPROM(&gpioConfig, &eeprom, romFile);
                     if(bytesNotMatched == 0) {
                         fprintf(stdout,"All bytes match\n");
+                    } else if(bytesNotMatched == -1){
+                        fprintf(stdout,"Error comparing file.\n");
+                        error = -1;
                     } else {
                         error = -1;
                         fprintf(stderr,"%i bytes do not match\n", bytesNotMatched);
