@@ -151,8 +151,8 @@ int setByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int a
 }
 
 /* Reads bytes from an EEPROM via Parallel GPIO */
-int* getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead, \
-						int numBytesToRead, int* buf){
+int getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead, \
+						int numBytesToRead, char* buf){
 	for(int j=0; j<numBytesToRead;j++){
 		int byteVal = 0;
 		// set the address
@@ -171,12 +171,12 @@ int* getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int
 		buf[j] = byteVal;
 		addressToRead++;
 	}
-	return buf;
+	return numBytesToRead;
 }
 
 /* Read a single byte from and EEPROM via Parallel GPIO */
 int getByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int address){
-	int buf[eeprom->addressSize + 1];
+	char buf[eeprom->addressSize + 1];
 	getBytesParallel(gpioConfig, eeprom, address,1, buf);
 	return *buf;
 }
@@ -458,7 +458,10 @@ int readNumBytesFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 			eeprom->byteReadCounter += numBytesRead;
 		}
 	} else {
-		// getBytesParallel(gpioConfig,eeprom,addressToRead,1,byteBuffer);
+		numBytesRead = getBytesParallel(gpioConfig,eeprom,addressToRead,1,byteBuffer);
+		if(numBytesRead != -1){
+			eeprom->byteReadCounter += numBytesRead;
+		}
 	}
 	
 	// return the number of bytes read
