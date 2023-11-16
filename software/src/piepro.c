@@ -685,6 +685,8 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 				addressToCompare += bytesRead;
 				for(int i = 0;i < bytesRead; i++){
 					if(bytesFromFileBuf[i] != bytesToCompareBuf[i]){
+						ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
+															addressToCompare+i,bytesToCompareBuf[i],bytesFromFileBuf[i]);
 						bytesNotMatched++;
 					}
 				}
