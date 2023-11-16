@@ -249,19 +249,19 @@ int setupI2C(char I2CId){
 }
 
 /* Read from a specified address via I2C */
-char* readI2C(int fd, char* buf, int numBytesToRead, int addressSize){
+int readI2C(int fd, char* buf, int numBytesToRead, int addressSize){
     int bytesWritten = write(fd, buf, addressSize);
     if(bytesWritten == -1){
         ulog(ERROR,"Error reading byte(s) via I2C");
-        return (char*) -1;
+        return -1;
     }
     int bytesRead = read(fd,buf,numBytesToRead);
     if(bytesRead == -1){
         buf[0] = bytesRead;
         ulog(ERROR,"Error reading byte(s) via I2C");
-        return (char*) -1;
+        return -1;
     }
-    return buf;
+    return bytesRead;
 }
 
 /* Write page to a specified address via I2C */

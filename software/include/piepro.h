@@ -7,7 +7,7 @@
     #define PATCH "2"
     #define VERSION  MAJOR "." MINOR "." PATCH
 
-    #define MAX_ADDRESS_PINS 15
+    #define MAX_ADDRESS_PINS 16
     #define MAX_DATA_PINS 8
 
     /**
