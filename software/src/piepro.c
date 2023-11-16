@@ -565,20 +565,53 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 /* Open and write a text file to EEPROM */
 int writeTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom, FILE *romFile){
 	int err = 0;
-	int address = 0;
-	int data = 0;
-	while(address < eeprom->limit && address != -1 && data != -1){
-		address = getNextFromTextFile(eeprom, romFile);
-		data = getNextFromTextFile(eeprom, romFile);
-		if(address < eeprom->limit && address >= eeprom->startValue){
-			if(address != -1 && data != -1){
-				err |= writeByteToAddress(gpioConfig, eeprom, address, data);
-			} else {
-				ulog(ERROR,"Cannot process text file");
-				return -1;
+	int addressToWrite = 0;
+	int dataToWrite = 0;
+
+	if(eeprom->quick){
+		int numBytesToWrite = eeprom->pageSize;
+		if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
+			numBytesToWrite = eeprom->limit-eeprom->startValue;
+		}
+
+		int bytesWritten = numBytesToWrite;
+		char bytesToWriteBuf[numBytesToWrite];
+		while(addressToWrite < eeprom->limit && err != -1){
+			int i = 0;
+			while(bytesWritten < numBytesToWrite){
+				bytesToWriteBuf[i++] = bytesToWriteBuf[bytesWritten++];
+			}
+			int tmpAddress = 0;
+			while((i < numBytesToWrite && (tmpAddress = getNextFromTextFile(eeprom, romFile)) != -1 && \
+												(dataToWrite = getNextFromTextFile(eeprom, romFile)) != -1)) {
+				bytesToWriteBuf[i++] = dataToWrite;
+			}
+			
+			if(addressToWrite < eeprom->limit && addressToWrite >= eeprom->startValue){
+				bytesWritten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, numBytesToWrite);
+			}
+			if( bytesWritten != -1){
+				addressToWrite += bytesWritten;
+			} else{
+				err = -1;
+			}
+		}
+	} else {
+		while(addressToWrite < eeprom->limit && addressToWrite != -1 && dataToWrite != -1){
+			addressToWrite = getNextFromTextFile(eeprom, romFile);
+			dataToWrite = getNextFromTextFile(eeprom, romFile);
+			if(addressToWrite < eeprom->limit && addressToWrite >= eeprom->startValue){
+				if(addressToWrite != -1 && dataToWrite != -1){
+					err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite, dataToWrite);
+				} else {
+					ulog(ERROR,"Cannot process text file");
+					return -1;
+				}
 			}
 		}
 	}
+
+	
 	return err;
 }
 
@@ -613,8 +646,34 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 	int err = 0;
 	unsigned int fileSize = setupFileToRead(romFile,eeprom->startValue);
 	
-	while((addressToWrite < eeprom->limit && addressToWrite < fileSize && (dataToWrite = fgetc(romFile)) != EOF)) {
-		err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite++, dataToWrite);
+	if(eeprom->quick){
+		int numBytesToWrite = eeprom->pageSize;
+		if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
+			numBytesToWrite = eeprom->limit-eeprom->startValue;
+		}
+
+		int bytesWritten = numBytesToWrite;
+		char bytesToWriteBuf[numBytesToWrite];
+		while(addressToWrite < eeprom->limit && err != -1){
+			int i = 0;
+			while(bytesWritten < numBytesToWrite){
+				bytesToWriteBuf[i++] = bytesToWriteBuf[bytesWritten++];
+			}
+			while((i < numBytesToWrite && (dataToWrite = fgetc(romFile)) != EOF)) {
+				bytesToWriteBuf[i++] = dataToWrite;
+			}
+
+			bytesWritten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, numBytesToWrite);
+			if( bytesWritten != -1){
+				addressToWrite += bytesWritten;
+			} else{
+				err = -1;
+			}
+		}
+	} else {
+		while((addressToWrite < eeprom->limit && addressToWrite < fileSize && (dataToWrite = fgetc(romFile)) != EOF)) {
+			err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite++, dataToWrite);
+		}
 	}
 	return err;
 }
@@ -737,9 +796,9 @@ int eraseEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char eras
 		
 		int addressToWrite = eeprom->startValue;
 		while(addressToWrite < eeprom->limit && err != -1){
-			int bytesWriten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, numBytesToWrite);
-			if( bytesWriten != -1){
-				addressToWrite += bytesWriten;
+			int bytesWritten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, numBytesToWrite);
+			if( bytesWritten != -1){
+				addressToWrite += bytesWritten;
 			} else{
 				err = -1;
 			}
