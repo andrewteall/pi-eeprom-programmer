@@ -178,7 +178,7 @@ int getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int 
 
 /* Read a single byte from and EEPROM via Parallel GPIO */
 int getByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int address){
-	char buf[eeprom->addressSize + 1];
+	char buf[eeprom->addressSize+1];
 	getBytesParallel(gpioConfig, eeprom, address,1, buf);
 	return *buf;
 }
@@ -741,31 +741,31 @@ int writeFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, FIL
 }
 
 /* Prints the EEPROM's Contents to the specified limit */
-void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int format){
+int printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int format){
+	int err = 0;
+
 	if (eeprom->limit == -1 || eeprom->limit > EEPROM_MODEL_SIZE[eeprom->model]){
 		eeprom->limit = EEPROM_MODEL_SIZE[eeprom->model];
 	}
-	int err = 0;
+	
 	switch (format) {
-	case 3: // labeled
+	case LABELED:
 		if(eeprom->quick){
 			int addressToRead = eeprom->startValue;
 			int numBytesToRead = eeprom->readChunk;
-			if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
-				numBytesToRead = eeprom->limit-eeprom->startValue;
-			}
 
+			if(eeprom->limit - eeprom->startValue < eeprom->readChunk){
+				numBytesToRead = eeprom->limit - eeprom->startValue;
+			}
 			int bytesRead = numBytesToRead;
 			char buffer[numBytesToRead+eeprom->addressSize];
 
-			while(addressToRead < eeprom->limit && err != -1){			
+			while(addressToRead < eeprom->limit && err != -1){
 				bytesRead = readNumBytesFromAddress(gpioConfig, eeprom, buffer, addressToRead, numBytesToRead);
-				if( bytesRead != -1){
+				if(bytesRead != -1){
 					int bufferIdx = 0;
-					for(int j = 0; bufferIdx < bytesRead && addressToRead+j<eeprom->limit; j++){
-						
-						fprintf(stdout,"Address: %i     Data: %i \n",addressToRead+j,buffer[bufferIdx++]);
-
+					for(int j = 0; bufferIdx < bytesRead && addressToRead+j < eeprom->limit; j++){
+						fprintf(stdout,"Address: %i     Data: %i \n", addressToRead+j, buffer[bufferIdx++]);
 					}
 					addressToRead += bytesRead;
 				} else{
@@ -774,33 +774,33 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 				}
 			}
 		} else {
-			for (int i=eeprom->startValue;i<eeprom->limit;i++){
-				fprintf(stdout,"Address: %i     Data: %i \n",i,readByteFromAddress(gpioConfig, eeprom,i));
+			for (int i = eeprom->startValue; i < eeprom->limit; i++){
+				fprintf(stdout,"Address: %i     Data: %i \n", i, readByteFromAddress(gpioConfig, eeprom, i));
 			}
 		}
 		break;
-	case 1:	// binary
+	case BINARY:
 		setLoggingLevel(OFF);
-		for (int i=0;i<eeprom->startValue;i++) {
+		for (int i=0; i < eeprom->startValue; i++) {
 			putc(0xFF,stdout);
 		}
 
 		if(eeprom->quick){
 			int addressToRead = eeprom->startValue;
 			int numBytesToRead = eeprom->readChunk;
-			if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
-				numBytesToRead = eeprom->limit-eeprom->startValue;
+
+			if(eeprom->limit - eeprom->startValue < eeprom->readChunk){
+				numBytesToRead = eeprom->limit - eeprom->startValue;
 			}
-
 			int bytesRead = numBytesToRead;
-			char buffer[numBytesToRead+eeprom->addressSize];
+			char buffer[numBytesToRead + eeprom->addressSize];
 
-			while(addressToRead < eeprom->limit && err != -1){			
+			while(addressToRead < eeprom->limit && err != -1){
 				bytesRead = readNumBytesFromAddress(gpioConfig, eeprom, buffer, addressToRead, numBytesToRead);
-				if( bytesRead != -1){
+				if(bytesRead != -1){
 					int bufferIdx = 0;
-					for(int j = 0; bufferIdx < bytesRead && addressToRead+j<eeprom->limit; j++){
-						putc(buffer[bufferIdx++],stdout);
+					for(int j = 0; bufferIdx < bytesRead && addressToRead+j < eeprom->limit; j++){
+						putc(buffer[bufferIdx++], stdout);
 					}
 					addressToRead += bytesRead;
 				} else{
@@ -809,27 +809,27 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 				}
 			}
 		} else {
-			for (int i=eeprom->startValue;i<eeprom->limit;i++) {
-				putc(readByteFromAddress(gpioConfig, eeprom,i),stdout);
+			for (int i = eeprom->startValue; i < eeprom->limit; i++) {
+				putc(readByteFromAddress(gpioConfig, eeprom, i), stdout);
 			}
 		}
 		break;
-	case 2: // text
+	case TEXT:
 		if(eeprom->quick){
 			int addressToRead = eeprom->startValue;
 			int numBytesToRead = eeprom->readChunk;
-			if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
-				numBytesToRead = eeprom->limit-eeprom->startValue;
-			}
 
+			if(eeprom->limit - eeprom->startValue < eeprom->readChunk){
+				numBytesToRead = eeprom->limit - eeprom->startValue;
+			}
 			int bytesRead = numBytesToRead;
 			char buffer[numBytesToRead+eeprom->addressSize];
 
-			while(addressToRead < eeprom->limit && err != -1){			
+			while(addressToRead < eeprom->limit && err != -1){
 				bytesRead = readNumBytesFromAddress(gpioConfig, eeprom, buffer, addressToRead, numBytesToRead);
-				if( bytesRead != -1){
+				if(bytesRead != -1){
 					int bufferIdx = 0;
-					for(int j = 0; bufferIdx < bytesRead && addressToRead+j<eeprom->limit; j++){
+					for(int j = 0; bufferIdx < bytesRead && addressToRead+j < eeprom->limit; j++){
 						char addressBinStr[eeprom->maxAddressLength+1];
 						char dataBinStr[eeprom->maxDataLength+1];
 
@@ -837,14 +837,14 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 							ulog(WARNING,"String Buffer not large enough to hold number: %i",addressToRead+j);
 						}
 						if(num2binStr(buffer[bufferIdx++], dataBinStr,eeprom->maxDataLength+1) == (char*)-1){
-							ulog(WARNING,"String Buffer not large enough to hold number: %i",buffer[bufferIdx-1]);
+							ulog(WARNING,"String Buffer not large enough to hold number: %i", buffer[bufferIdx - 1]);
 						}
 						if ( eeprom->startValue < 0x100 && eeprom->limit < 0x100){
 							char shortAddressBinStr[9];
-							strncpy(shortAddressBinStr,&addressBinStr[8],9);
-							fprintf(stdout,"%s %s\n", shortAddressBinStr,dataBinStr);
+							strncpy(shortAddressBinStr,&addressBinStr[8] ,9);
+							fprintf(stdout,"%s %s\n", shortAddressBinStr, dataBinStr);
 						} else {
-							fprintf(stdout,"%s %s\n",addressBinStr,dataBinStr);
+							fprintf(stdout,"%s %s\n", addressBinStr, dataBinStr);
 						}
 					}
 					addressToRead += bytesRead;
@@ -854,55 +854,63 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 				}
 			}
 		} else {
-			for (int i=eeprom->startValue;i<eeprom->limit;i++) {
+			for (int i = eeprom->startValue; i < eeprom->limit; i++) {
 				char addressBinStr[eeprom->maxAddressLength+1];
 				char dataBinStr[eeprom->maxDataLength+1];
 
 				if(num2binStr(i, addressBinStr, eeprom->maxAddressLength+1) == (char*)-1){
-					ulog(WARNING,"String Buffer not large enough to hold number: %i",i);
+					ulog(WARNING,"String Buffer not large enough to hold number: %i", i);
 				}
-				if(num2binStr(readByteFromAddress(gpioConfig, eeprom,i), dataBinStr,eeprom->maxDataLength+1) == (char*)-1){
-					ulog(WARNING,"String Buffer not large enough to hold number: %i",i);
+
+				if(num2binStr(readByteFromAddress(gpioConfig, eeprom, i), dataBinStr, eeprom->maxDataLength+1) == (char*)-1){
+					ulog(WARNING,"String Buffer not large enough to hold number: %i", i);
 				}
-				if ( eeprom->startValue < 0x100 && eeprom->limit < 0x100){
+
+				if (eeprom->startValue < 0x100 && eeprom->limit < 0x100){
 					char shortAddressBinStr[9];
-					strncpy(shortAddressBinStr,&addressBinStr[8],9);
-					fprintf(stdout,"%s %s\n", shortAddressBinStr,dataBinStr);
+					strncpy(shortAddressBinStr, &addressBinStr[8], 9);
+					fprintf(stdout,"%s %s\n", shortAddressBinStr, dataBinStr);
 				} else {
-					fprintf(stdout,"%s %s\n",addressBinStr,dataBinStr);
+					fprintf(stdout,"%s %s\n", addressBinStr, dataBinStr);
 				}
 			}
 		}
 		break;
-
-	case 0: // pretty
+	case PRETTY:
 	default:
+		int beginPrint = eeprom->startValue;
 		if ((eeprom->startValue % 16) != 0){
-			eeprom->startValue = eeprom->startValue - ((eeprom->startValue % 16));
+			eeprom->startValue = eeprom->startValue - (eeprom->startValue % 16);
 		}
+
+		fprintf(stdout,"       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
+		fprintf(stdout,"Device ===============================================================\n");
 
 		if(eeprom->quick){
 			int addressToRead = eeprom->startValue;
 			int numBytesToRead = eeprom->readChunk;
-			if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
-				numBytesToRead = eeprom->limit-eeprom->startValue;
-			}
 
+			if(eeprom->limit - eeprom->startValue < eeprom->readChunk){
+				numBytesToRead = eeprom->limit - eeprom->startValue;
+			}
 			int bytesRead = numBytesToRead;
 			char buffer[numBytesToRead+eeprom->addressSize];
-	
-			fprintf(stdout,"       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
-			fprintf(stdout,"Device ===============================================================\n");
-			while(addressToRead < eeprom->limit && err != -1){			
+
+			while(addressToRead < eeprom->limit && err != -1){
 				bytesRead = readNumBytesFromAddress(gpioConfig, eeprom, buffer, addressToRead, numBytesToRead);
-				if( bytesRead != -1){
+				if(bytesRead != -1){
 					int bufferIdx = 0;
-					for(int j = 0; bufferIdx < bytesRead && addressToRead+j<eeprom->limit; j++){
-						if( (addressToRead+j) % 16 == 0 ){
-							fprintf(stdout,"%04x | ",addressToRead+j);
+					for(int j = 0; bufferIdx < bytesRead && addressToRead+j < eeprom->limit; j++){
+						if((addressToRead+j) % 16 == 0){
+							fprintf(stdout,"%04x | ", addressToRead+j);
 						}
-						fprintf(stdout,"%02x  ",buffer[bufferIdx++]);
-						if( (addressToRead+j+1) % 16 == 0 ){
+						if(addressToRead+j >= beginPrint){
+							fprintf(stdout,"%02x  ", buffer[bufferIdx++]);
+						} else {
+							fprintf(stdout,"    ");
+							bufferIdx++;
+						}
+						if((addressToRead + j + 1) % 16 == 0  && (addressToRead + j + 1) != eeprom->limit){
 							fprintf(stdout,"\n");
 						}
 					}
@@ -912,24 +920,26 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 					err = -1;
 				}
 			}
+			fprintf(stdout,"\n");
 		} else {
-
-			fprintf(stdout,"       00  01  02  03  04  05  06  07  08  09  0A  0B  0C  0D  0E  0F\n");
-			fprintf(stdout,"Device ===============================================================\n");
-			for (int i=eeprom->startValue;i<eeprom->limit;i++){
-				fprintf(stdout,"%04x | ",i);
-				int j=0;
-				while(j<16 && i<eeprom->limit){
-					fprintf(stdout,"%02x  ",readByteFromAddress(gpioConfig, eeprom,i++));
-					j++;
+			for (int i = eeprom->startValue; i < eeprom->limit; i++){
+				fprintf(stdout,"%04x | ", i);
+				for(int j = 0; j < 16 && i < eeprom->limit; j++){
+					if(i >= beginPrint){
+						fprintf(stdout,"%02x  ", readByteFromAddress(gpioConfig, eeprom, i++));
+					} else {
+						fprintf(stdout,"    ");
+						i++;
+					}
 				}
 				i--;
 				fprintf(stdout,"\n");
 			}
 		}
-
 		break;
 	}
+
+	return err;
 }
 
 /* Erase EEPROM */
@@ -1057,7 +1067,7 @@ void setDefaultOptions(struct OPTIONS* options){
     options->filename = NULL;
 	options->limit = -1;
     options->startValue = 0;
-    options->dumpFormat = 0;
+    options->dumpFormat = PRETTY;
     options->validateWrite = 1;
     options->force = 0;
     options->action = NOTHING;
@@ -1156,13 +1166,13 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
 				} else {
 					ulog(INFO,"Dumping EEPROM to standard out");
-					int format = 0;
+					int format = PRETTY;
 					if (i != argc-1) {
 						format = str2num(argv[i+1]);
 						i++;
 					}
 					if(format == -1 || format > 3){
-						options->dumpFormat = 0;
+						options->dumpFormat = PRETTY;
 					} else {
 						options->dumpFormat = format;
 					}

@@ -28,6 +28,11 @@
     enum FILE_TYPE {TEXT_FILE,BINARY_FILE};
 
     /**
+     * @brief Defines print formats when dumping the EEPROM.
+     */
+    enum PRINT_FORMAT {PRETTY=0,BINARY,TEXT,LABELED};
+
+    /**
      * @brief Defines the supported functions of the programmer.
      */
 	enum APP_FUNCTIONS {
@@ -205,8 +210,9 @@
      * @param *gpioChip A pointer to the GPIO_CONFIG struct to reference gpio chip to be used.
      * @param *eeprom A eeprom struct that contains the eeprom info.
      * @param format The format to print the EEPROM contents.
+     * @return int Returns 0 if successful -1 if error.
      */
-    void printEEPROMContents(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, int format);
+    int printEEPROMContents(struct GPIO_CONFIG* gpioChip, struct EEPROM* eeprom, int format);
 
     /**
      * @brief Writes a byte to a specified address.

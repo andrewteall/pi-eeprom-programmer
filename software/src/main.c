@@ -66,7 +66,7 @@ int main(int argc, char *argv[]){
                 fclose(romFile);
                 break;
             case DUMP_ROM:
-                printEEPROMContents(&gpioConfig, &eeprom, options.dumpFormat);
+                error = printEEPROMContents(&gpioConfig, &eeprom, options.dumpFormat);
                 break;
             case ERASE_ROM:
                 char confirmation;
