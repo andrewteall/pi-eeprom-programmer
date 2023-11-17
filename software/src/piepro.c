@@ -442,30 +442,35 @@ int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CON
 int readNumBytesFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char* byteBuffer, \
 																				int addressToRead, int numBytesToRead){
 	int numBytesRead = 0;
+
 	if(addressToRead > eeprom->size-1){
 		ulog(ERROR,"Address out of range of EEPROM: 0x%02x plus 0x%02x bytes", addressToRead, numBytesToRead);
 		return -1;
 	}
 	
-	if(addressToRead+numBytesToRead-1 > eeprom->size-1){
+	if(addressToRead + numBytesToRead - 1 > eeprom->size-1){
 		numBytesToRead = ((eeprom->size-1) - addressToRead) + 1;
-		ulog(WARNING,"Addresses requested exceeds eeprom size. Only reading %i bytes",numBytesToRead);
+		ulog(WARNING,"Addresses requested exceeds eeprom size. Only reading %i bytes", numBytesToRead);
 	}
 
-	int maxBytesToRead = eeprom->readChunk-(addressToRead%eeprom->readChunk);
+	if(addressToRead + numBytesToRead - 1 > eeprom->limit){
+		numBytesToRead = eeprom->limit - addressToRead ;
+	}
+
+	int maxBytesToRead = eeprom->readChunk - (addressToRead % eeprom->readChunk);
 	if(maxBytesToRead < numBytesToRead){
 		numBytesToRead = maxBytesToRead;
-		ulog(DEBUG,"Addresses requested crosses page boundary. Only reading %i bytes",numBytesToRead);
+		ulog(DEBUG,"Addresses requested crosses page boundary. Only reading %i bytes", numBytesToRead);
 	}
 
 	if (eeprom->type == I2C){
 		setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
-		numBytesRead = getBytesI2C(eeprom,addressToRead,numBytesToRead,byteBuffer);
+		numBytesRead = getBytesI2C(eeprom, addressToRead, numBytesToRead ,byteBuffer);
 		if(numBytesRead != -1){
 			eeprom->byteReadCounter += numBytesRead;
 		}
 	} else {
-		numBytesRead = getBytesParallel(gpioConfig,eeprom,addressToRead,1,byteBuffer);
+		numBytesRead = getBytesParallel(gpioConfig, eeprom, addressToRead, 1, byteBuffer);
 		if(numBytesRead != -1){
 			eeprom->byteReadCounter += numBytesRead;
 		}
@@ -480,15 +485,16 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, i
 	int byteVal = 0;
 
 	if(addressToRead > eeprom->size-1){
-		ulog(ERROR,"Address out of range of EEPROM: 0x%02x",addressToRead);
+		ulog(ERROR,"Address out of range of EEPROM: 0x%02x", addressToRead);
 		return -1;
 	}
 	if (eeprom->type == I2C){
-		setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
-		byteVal = getByteI2C(eeprom,addressToRead);
+		setPinLevel(gpioConfig,eeprom->writeProtectPin, HIGH);
+		byteVal = getByteI2C(eeprom, addressToRead);
 	} else {
-		byteVal = getByteParallel(gpioConfig,eeprom,addressToRead);
+		byteVal = getByteParallel(gpioConfig, eeprom, addressToRead);
 	}
+
 	// return the number
 	return byteVal;
 }
@@ -497,71 +503,74 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, i
 int writeNumBytesToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char* byteBuffer, \
 																				int addressToWrite, int numBytesToWrite){
 	int numBytesWritten = 0;
+
 	if(addressToWrite > eeprom->size-1){
 		ulog(ERROR,"Address out of range of EEPROM: 0x%02x plus 0x%02x bytes", addressToWrite, numBytesToWrite);
 		return -1;
 	}
 	
-	if(addressToWrite+numBytesToWrite-1 > eeprom->size-1){
+	if(addressToWrite + numBytesToWrite - 1 > eeprom->size-1){
 		numBytesToWrite = ((eeprom->size-1) - addressToWrite) + 1;
-		ulog(WARNING,"Addresses requested exceeds eeprom size. Only writing %i bytes",numBytesToWrite);
+		ulog(WARNING,"Addresses requested exceeds eeprom size. Only writing %i bytes", numBytesToWrite);
 	}
 
-	if(addressToWrite+numBytesToWrite-1 > eeprom->limit){
+	if(addressToWrite + numBytesToWrite - 1 > eeprom->limit){
 		numBytesToWrite = eeprom->limit - addressToWrite ;
 	}
 
-	int maxBytesToWrite = eeprom->pageSize-(addressToWrite%eeprom->pageSize);
+	int maxBytesToWrite = eeprom->pageSize - (addressToWrite % eeprom->pageSize);
 	if(maxBytesToWrite < numBytesToWrite){
 		numBytesToWrite = maxBytesToWrite;
-		ulog(DEBUG,"Addresses requested crosses page boundary. Only writing %i bytes",numBytesToWrite);
+		ulog(DEBUG,"Addresses requested crosses page boundary. Only writing %i bytes", numBytesToWrite);
 	}
 
-
 	if (eeprom->type == I2C){
-		setPinLevel(gpioConfig,eeprom->writeProtectPin,LOW);
-		numBytesWritten = setBytesI2C(eeprom,addressToWrite,byteBuffer,numBytesToWrite);
+		setPinLevel(gpioConfig,eeprom->writeProtectPin, LOW);
+		numBytesWritten = setBytesI2C(eeprom, addressToWrite, byteBuffer, numBytesToWrite);
 	} else {
-		numBytesWritten = setBytesParallel(gpioConfig,eeprom,addressToWrite,byteBuffer,numBytesToWrite);
+		numBytesWritten = setBytesParallel(gpioConfig, eeprom, addressToWrite, byteBuffer, numBytesToWrite);
 	}
 	
 	if(numBytesWritten != -1){
-		eeprom->byteWriteCounter += numBytesWritten-eeprom->addressSize;
+		eeprom->byteWriteCounter += numBytesWritten - eeprom->addressSize;
 	}
 	if(numBytesWritten-eeprom->addressSize != numBytesToWrite){
 		numBytesWritten = -1;
 	}
-	return numBytesWritten-eeprom->addressSize;
+
+	return numBytesWritten - eeprom->addressSize;
 }
 
 /* Write specified byte to specified address */
 int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char dataToWrite){
 	int err = 0;
+
 	if(addressToWrite > eeprom->size-1){
-		ulog(ERROR,"Address out of range of EEPROM: 0x%02x",addressToWrite);
+		ulog(ERROR,"Address out of range of EEPROM: 0x%02x", addressToWrite);
 		return -1;
 	}
+
 	if (eeprom->type == I2C){
-		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom,addressToWrite)){
-			setPinLevel(gpioConfig,eeprom->writeProtectPin,LOW);
+		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom, addressToWrite)){
+			setPinLevel(gpioConfig, eeprom->writeProtectPin, LOW);
 			if (setByteI2C(eeprom, addressToWrite, dataToWrite) != -1){
-				ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+				ulog(DEBUG,"Wrote Byte %i at Address %i", dataToWrite, addressToWrite);
 				eeprom->byteWriteCounter++;
 			} else {
-				ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
+				ulog(WARNING,"Failed to Write Byte %i at Address %i", dataToWrite, addressToWrite);
 				err = -1;
 			}
 			setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
 		}
 	} else {
-		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom,addressToWrite)){
-			setByteParallel(gpioConfig,eeprom,addressToWrite,dataToWrite);
+		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom, addressToWrite)){
+			setByteParallel(gpioConfig ,eeprom, addressToWrite, dataToWrite);
 			if (eeprom->validateWrite == 1){
-				if (dataToWrite != readByteFromAddress(gpioConfig, eeprom,addressToWrite)){
-					ulog(WARNING,"Failed to Write Byte %i at Address %i",dataToWrite,addressToWrite);
+				if (dataToWrite != readByteFromAddress(gpioConfig, eeprom, addressToWrite)){
+					ulog(WARNING,"Failed to Write Byte %i at Address %i", dataToWrite, addressToWrite);
 					err = -1;
 				} else {
-					ulog(DEBUG,"Wrote Byte %i at Address %i",dataToWrite,addressToWrite);
+					ulog(DEBUG,"Wrote Byte %i at Address %i", dataToWrite, addressToWrite);
 					eeprom->byteWriteCounter++;
 				}
 			} else {
@@ -569,6 +578,7 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 			}
 		}
 	}
+
 	return err;
 }
 
@@ -728,7 +738,7 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 			addressToCompare++;
 		}
 	}
-	 
+
 	return bytesNotMatched;
 }
 
