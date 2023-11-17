@@ -585,6 +585,7 @@ int writeTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom,
 		while(addressToWrite < eeprom->limit && addressToWrite != -1 && dataToWrite != -1){
 			addressToWrite = getNextFromTextFile(eeprom, romFile);
 			dataToWrite = getNextFromTextFile(eeprom, romFile);
+			
 			if(addressToWrite < eeprom->limit && addressToWrite >= eeprom->startValue){
 				if(addressToWrite != -1 && dataToWrite != -1){
 					err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite, dataToWrite);
@@ -596,7 +597,6 @@ int writeTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom,
 		}
 	}
 
-	
 	return err;
 }
 
@@ -605,27 +605,30 @@ int compareTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eepro
 	int address = 0;
 	int data = 0;
 	int bytesNotMatched = 0;
+	
 	if(eeprom->quick){
 		ulog(ERROR,"Quick action, -q or --quick, not valid for text files");
-			bytesNotMatched = -1;
+		bytesNotMatched = -1;
 	} else {
 		while(address < eeprom->limit && address != -1 && data != -1){
 			address = getNextFromTextFile(eeprom, romFile);
 			data = getNextFromTextFile(eeprom, romFile);
+			
 			if(address < eeprom->limit && address >= eeprom->startValue ){
-			if(address != -1 && data != -1){
-				int byte = readByteFromAddress(gpioConfig, eeprom, address);
-				if (byte != data){
-					ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i",address,byte,data);
-					bytesNotMatched++;
+				if(address != -1 && data != -1){
+					int byte = readByteFromAddress(gpioConfig, eeprom, address);
+					if (byte != data){
+						ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", address, byte, data);
+						bytesNotMatched++;
+					}
+				} else {
+					ulog(ERROR,"Cannot process text file");
+					return -1;
 				}
-			} else {
-				ulog(ERROR,"Cannot process text file");
-				return -1;
 			}
 		}
 	}
-	}
+
 	return bytesNotMatched;
 }
 
@@ -634,21 +637,23 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 	char dataToWrite;
 	int addressToWrite = eeprom->startValue;
 	int err = 0;
-	unsigned int fileSize = setupFileToRead(romFile,eeprom->startValue);
+	unsigned int fileSize = setupFileToRead(romFile, eeprom->startValue);
 	
 	if(eeprom->quick){
 		int numBytesToWrite = eeprom->pageSize;
 		if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
 			numBytesToWrite = eeprom->limit-eeprom->startValue;
 		}
-
 		int bytesWritten = numBytesToWrite;
 		char bytesToWriteBuf[numBytesToWrite];
+
 		while(addressToWrite < eeprom->limit && err != -1 && addressToWrite < fileSize){
 			int i = 0;
+
 			while(bytesWritten < numBytesToWrite){
 				bytesToWriteBuf[i++] = bytesToWriteBuf[bytesWritten++];
 			}
+
 			while((i < numBytesToWrite && addressToWrite+i < fileSize && \
 			        addressToWrite+i < eeprom->limit && (dataToWrite = fgetc(romFile)) != EOF)) {
 				bytesToWriteBuf[i++] = dataToWrite;
@@ -666,6 +671,7 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 			err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite++, dataToWrite);
 		}
 	}
+
 	return err;
 }
 
@@ -674,22 +680,24 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 	char dataToCompare;
 	int addressToCompare = eeprom->startValue;
 	int bytesNotMatched = 0;
-	unsigned int fileSize = setupFileToRead(romFile,eeprom->startValue);
+	unsigned int fileSize = setupFileToRead(romFile, eeprom->startValue);
 
 	if(eeprom->quick){
 		int numBytesToCompare = eeprom->readChunk;
-		if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
-			numBytesToCompare = eeprom->limit-eeprom->startValue;
+		if(eeprom->limit - eeprom->startValue < eeprom->readChunk){
+			numBytesToCompare = eeprom->limit - eeprom->startValue;
 		}
-
 		int bytesRead = numBytesToCompare;
 		char bytesToCompareBuf[numBytesToCompare+eeprom->addressSize];
 		char bytesFromFileBuf[numBytesToCompare+eeprom->addressSize];
+		
 		while(addressToCompare < eeprom->limit && bytesNotMatched != -1 && addressToCompare < fileSize){
 			int i = 0;
+
 			while(bytesRead < numBytesToCompare){
 				bytesFromFileBuf[i++] = bytesFromFileBuf[bytesRead++];
 			}
+
 			while((i < numBytesToCompare && addressToCompare+i < fileSize && \
 					addressToCompare+i < eeprom->limit && (dataToCompare = fgetc(romFile)) != EOF)) {
 				bytesFromFileBuf[i++] = dataToCompare;
@@ -700,7 +708,7 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 				for(int i = 0;i < bytesRead; i++){
 					if(bytesFromFileBuf[i] != bytesToCompareBuf[i]){
 						ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
-															addressToCompare+i,bytesToCompareBuf[i],bytesFromFileBuf[i]);
+															addressToCompare+i, bytesToCompareBuf[i], bytesFromFileBuf[i]);
 						bytesNotMatched++;
 					}
 				}
@@ -711,14 +719,16 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 		}
 	} else {
 		while(((dataToCompare = fgetc(romFile)) != EOF) && addressToCompare < fileSize && addressToCompare < eeprom->limit) {
-			char byte = readByteFromAddress(gpioConfig, eeprom,addressToCompare);
+			char byte = readByteFromAddress(gpioConfig, eeprom, addressToCompare);
 			if (byte != dataToCompare){
-				ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i",addressToCompare,byte,dataToCompare);
+				ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
+															addressToCompare, byte, dataToCompare);
 				bytesNotMatched++;
 			}
 			addressToCompare++;
 		}
-	} 
+	}
+	 
 	return bytesNotMatched;
 }
 
