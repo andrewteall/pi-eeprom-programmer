@@ -91,6 +91,9 @@
         int writeCycleUSec;
         int useWriteCyclePolling;
         int boardType;
+        int quick;
+        int readChunk;
+        int promptUser;
         // Single Read/Write Parameters
         int addressParam;
         int dataParam;
@@ -100,8 +103,6 @@
         char* chipname;
         int numGPIOLines;
         char eraseByte;
-        int quick;
-        int readChunk;
         };  
 
     /**

@@ -138,6 +138,7 @@ Options:
  -wb ADDRESS DATA, --write-byte ADDRESS DATA 
                             Write specified DATA to ADDRESS.
  -wd [N],   --write-delay N Enable write delay. N Number of microseconds to delay between writes.
+ -y,        --yes           Automatically answer Yes to write or erase EEPROM.
 
 
  Supported and tested Models:
