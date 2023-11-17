@@ -38,18 +38,19 @@ int main(int argc, char *argv[]){
                     break;
                 }
                 if(options.action == WRITE_FILE_TO_ROM){
+                    char confirmation;
                     if(options.promptUser){
                         printf("Are you sure you want to write to the EEPROM? y/N\n");
-                        char confirmation = getchar();  
-                        
-                        if(confirmation == 'y' || confirmation == 'Y'){
-                            error = writeFileToEEPROM(&gpioConfig, &eeprom, romFile);
-                            fprintf(stdout,"Wrote %i bytes\n", eeprom.byteWriteCounter);
-                        } else {
-                            printf("Aborting write operation.\n");
-                            break;
-                        }
-                    }   
+                        confirmation = getchar();  
+                    }    
+                    if(confirmation == 'y' || confirmation == 'Y' || !options.promptUser){
+                        error = writeFileToEEPROM(&gpioConfig, &eeprom, romFile);
+                        fprintf(stdout,"Wrote %i bytes\n", eeprom.byteWriteCounter);
+                    } else {
+                        printf("Aborting write operation.\n");
+                        break;
+                    }
+                    
                 } else {
                     int bytesNotMatched = compareFileToEEPROM(&gpioConfig, &eeprom, romFile);
                     if(bytesNotMatched == 0) {
@@ -68,17 +69,18 @@ int main(int argc, char *argv[]){
                 printEEPROMContents(&gpioConfig, &eeprom, options.dumpFormat);
                 break;
             case ERASE_ROM:
+                char confirmation;
                 if(options.promptUser){
                     printf("Are you sure you want to erase the EEPROM? y/N\n");
-                    char confirmation = getchar();  
-                    
-                    if(confirmation == 'y' || confirmation == 'Y'){
-                        error = eraseEEPROM(&gpioConfig, &eeprom, options.eraseByte);
-                    } else {
-                        printf("Aborting erase operation.\n");
-                        break;
-                    }
+                    confirmation = getchar();  
                 }
+                if(confirmation == 'y' || confirmation == 'Y' || !options.promptUser){
+                    error = eraseEEPROM(&gpioConfig, &eeprom, options.eraseByte);
+                } else {
+                    printf("Aborting erase operation.\n");
+                    break;
+                }
+
                 if(error == 0) {
                     fprintf(stdout,"Sucessfully Erased %i bytes in EEPROM with 0x%02x\n", \
                                                                 eeprom.byteWriteCounter, options.eraseByte);
