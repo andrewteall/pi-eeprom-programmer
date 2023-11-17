@@ -199,23 +199,27 @@ void setAddressinBuffer(struct EEPROM* eeprom, int address, char* buf){
 }
 
 /* Reads bytes from an EEPROM via I2C */
-int getBytesI2C(struct EEPROM* eeprom, int addressToRead, int numBytesToRead, char* buf){
+int getBytesI2C(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToRead, int numBytesToRead, char* buf){
     setAddressinBuffer(eeprom, addressToRead, buf);
+	setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
 	return readI2C(eeprom->fd, buf, numBytesToRead, eeprom->addressSize);
 }
 
 /* Read a single byte from and EEPROM via I2C */
-int getByteI2C(struct EEPROM* eeprom, int address){
+int getByteI2C(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int address){
 	char buf[eeprom->addressSize + 1];
-	getBytesI2C(eeprom, address, 1, buf);
+	getBytesI2C(gpioConfig, eeprom, address, 1, buf);
 	return *buf;
 }
 
 /* Writes bytes to an EEPROM via I2C */
-int setBytesI2C(struct EEPROM* eeprom, int addressToWrite, char* data, int numBytesToWrite){
+int setBytesI2C(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char* data, int numBytesToWrite){
 	int bufSize = eeprom->addressSize + numBytesToWrite;
 	char buf[bufSize];
 	
+	// Disable Write Protection
+	setPinLevel(gpioConfig,eeprom->writeProtectPin, LOW);
+
 	// Set the Address
 	setAddressinBuffer(eeprom, addressToWrite, buf);
 
@@ -231,8 +235,8 @@ int setBytesI2C(struct EEPROM* eeprom, int addressToWrite, char* data, int numBy
 }
 
 /* Write a single byte to an EEPROM via I2C */
-int setByteI2C(struct EEPROM* eeprom, int addressToWrite, char data){
-	return setBytesI2C(eeprom, addressToWrite, &data, 1);
+int setByteI2C(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, char data){
+	return setBytesI2C(gpioConfig, eeprom, addressToWrite, &data, 1);
 }
 
 /* Fast forward to start value when reading file and return the size*/
@@ -464,8 +468,7 @@ int readNumBytesFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 	}
 
 	if (eeprom->type == I2C){
-		setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
-		numBytesRead = getBytesI2C(eeprom, addressToRead, numBytesToRead ,byteBuffer);
+		numBytesRead = getBytesI2C(gpioConfig, eeprom, addressToRead, numBytesToRead ,byteBuffer);
 		if(numBytesRead != -1){
 			eeprom->byteReadCounter += numBytesRead;
 		}
@@ -489,8 +492,7 @@ int readByteFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, i
 		return -1;
 	}
 	if (eeprom->type == I2C){
-		setPinLevel(gpioConfig,eeprom->writeProtectPin, HIGH);
-		byteVal = getByteI2C(eeprom, addressToRead);
+		byteVal = getByteI2C(gpioConfig, eeprom, addressToRead);
 	} else {
 		byteVal = getByteParallel(gpioConfig, eeprom, addressToRead);
 	}
@@ -525,8 +527,7 @@ int writeNumBytesToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom
 	}
 
 	if (eeprom->type == I2C){
-		setPinLevel(gpioConfig,eeprom->writeProtectPin, LOW);
-		numBytesWritten = setBytesI2C(eeprom, addressToWrite, byteBuffer, numBytesToWrite);
+		numBytesWritten = setBytesI2C(gpioConfig, eeprom, addressToWrite, byteBuffer, numBytesToWrite);
 	} else {
 		numBytesWritten = setBytesParallel(gpioConfig, eeprom, addressToWrite, byteBuffer, numBytesToWrite);
 	}
@@ -552,15 +553,13 @@ int writeByteToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, in
 
 	if (eeprom->type == I2C){
 		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom, addressToWrite)){
-			setPinLevel(gpioConfig, eeprom->writeProtectPin, LOW);
-			if (setByteI2C(eeprom, addressToWrite, dataToWrite) != -1){
+			if (setByteI2C(gpioConfig, eeprom, addressToWrite, dataToWrite) != -1){
 				ulog(DEBUG,"Wrote Byte %i at Address %i", dataToWrite, addressToWrite);
 				eeprom->byteWriteCounter++;
 			} else {
 				ulog(WARNING,"Failed to Write Byte %i at Address %i", dataToWrite, addressToWrite);
 				err = -1;
 			}
-			setPinLevel(gpioConfig,eeprom->writeProtectPin,HIGH);
 		}
 	} else {
 		if (eeprom->forceWrite || dataToWrite != readByteFromAddress(gpioConfig, eeprom, addressToWrite)){
