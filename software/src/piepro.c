@@ -1037,9 +1037,14 @@ void printSupportedEEPROMs(){
 	}
 }
 
+/* Prints version number */
+void printVersion(){
+	fprintf(stdout,"piepro v%s\n",VERSION);
+}
+
 /* Prints help message */
 void printHelp(){
-	fprintf(stdout,"piepro v%s\n",VERSION);
+	printVersion();
 	fprintf(stdout,"Usage: piepro [options]\n");
 	fprintf(stdout,"Options:\n");
 	fprintf(stdout," -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.\n");
@@ -1076,11 +1081,6 @@ void printHelp(){
 	printSupportedEEPROMs();
 }
 
-/* Prints version number */
-void printVersion(){
-	fprintf(stdout,"piepro v%s\n",VERSION);
-}
-
 /* Sets default options */
 void setDefaultOptions(struct OPTIONS* options){
 	// Options
@@ -1111,38 +1111,38 @@ void setDefaultOptions(struct OPTIONS* options){
 }
 
 /* Parses and processes all command line arguments */
-int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
+int parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
     setDefaultOptions(options);
 
     options->filename = argv[argc-1];
-		for(int i=argc-1;i>0;i--){
+		for(int i = 1; i < argc; i++){
 			// -h --help
-			if (!(strcmp(argv[i],"-h")) || (!strcmp(argv[i],"--help"))){
+			if (!(strcmp(argv[i], "-h")) || (!strcmp(argv[i], "--help"))){
 				printHelp();
 				options->action = HELP;
 				return 0;
 			}
 
 			// --version
-			if (!strcmp(argv[i],"--version")){
+			if (!strcmp(argv[i], "--version")){
 				printVersion();
 				options->action = VER;
 				return 0;
 			}
 
 			//-v -vvvv
-			if (!strcmp(argv[i],"-v") || !strcmp(argv[i],"--v") || !strcmp(argv[i],"--vv") \
-				|| !strcmp(argv[i],"--vvv") || !strcmp(argv[i],"--vvvv")|| !strcmp(argv[i],"--vvvvv")){
+			if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--v") || !strcmp(argv[i], "--vv") \
+				|| !strcmp(argv[i], "--vvv") || !strcmp(argv[i], "--vvvv")|| !strcmp(argv[i], "--vvvvv")){
 				int verbosity = 0;
-				if (!strcmp(argv[i],"-v")){
+				if (!strcmp(argv[i], "-v")){
 					if (i != argc-1) {
 						verbosity = str2num(argv[i+1]);
 					} else {
-						ulog(ERROR,"%s Flag must have a verbosity level specified",argv[i]);
+						ulog(ERROR,"%s Flag must have a verbosity level specified", argv[i]);
 					return -1;
 					}
 				} else {
-					verbosity = strlen(argv[i])-2;
+					verbosity = strlen(argv[i]) - 2;
 				}
 				if (setLoggingLevel(verbosity)){
 					return -1;
@@ -1150,40 +1150,40 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 			}
 		}
 
-		for(int i=1;i<argc;i++){
+		for(int i = 1; i < argc; i++){
 			// -c --compare
-			if (!strcmp(argv[i],"-c") || !strcmp(argv[i],"--compare")){
+			if (!strcmp(argv[i], "-c") || !strcmp(argv[i], "--compare")){
 				if (options->action != COMPARE_FILE_TO_ROM && options->action != NOTHING){
 					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+						"%s flag specified but another action has already be set. Ignoring %s flag.", argv[i], argv[i]);
 				} else if (i != argc-1) {
-					ulog(INFO,"Comparing EEPROM to File: %s",argv[i+1]);
+					ulog(INFO,"Comparing EEPROM to File: %s", argv[i+1]);
 					options->action = COMPARE_FILE_TO_ROM;
 					options->filename = argv[i+1];
 					i++;
 				} else {
-					ulog(ERROR,"%s Flag must have a filename specified",argv[i]);
+					ulog(ERROR,"%s Flag must have a filename specified", argv[i]);
 					return -1;
 				}
 			}
 
 			// --chipname
-			if (!strcmp(argv[i],"--chipname")){
+			if (!strcmp(argv[i], "--chipname")){
 				if (i != argc-1) {
-					ulog(INFO,"Setting Chipname to %s",argv[i+1]);
+					ulog(INFO,"Setting Chipname to %s", argv[i+1]);
 					options->chipname = argv[i+1];
 					i++;
 				} else {
-					ulog(ERROR,"%s Flag must have a chipname specified",argv[i]);
+					ulog(ERROR,"%s Flag must have a chipname specified", argv[i]);
 					return -1;
 				}
 			}
 
 			// -d --dump || -r --read
-			if (!strcmp(argv[i],"-d") || !strcmp(argv[i],"--dump") || !strcmp(argv[i],"-r") || !strcmp(argv[i],"--read")){
+			if (!strcmp(argv[i], "-d") || !strcmp(argv[i], "--dump") || !strcmp(argv[i], "-r") || !strcmp(argv[i], "--read")){
 				if (options->action != DUMP_ROM && options->action != NOTHING){
 					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+						"%s flag specified but another action has already be set. Ignoring %s flag.", argv[i], argv[i]);
 				} else {
 					ulog(INFO,"Dumping EEPROM to standard out");
 					int format = PRETTY;
@@ -1201,10 +1201,10 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 			}
 
 			// -e --erase
-			if (!strcmp(argv[i],"-e") || !strcmp(argv[i],"--erase")){
+			if (!strcmp(argv[i], "-e") || !strcmp(argv[i], "--erase")){
 				if (options->action != ERASE_ROM && options->action != NOTHING){
 					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+						"%s flag specified but another action has already be set. Ignoring %s flag.", argv[i], argv[i]);
 				} else {
 					if (i != argc-1) {
 						options->eraseByte = str2num(argv[i+1]);
@@ -1216,13 +1216,13 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 			}
 
 			// -f --force
-			if (!strcmp(argv[i],"-f") || !strcmp(argv[i],"--force")){
+			if (!strcmp(argv[i], "-f") || !strcmp(argv[i], "--force")){
 					ulog(INFO,"Forcing all writes even if value is already present.");
 					options->force = 1;
 			}
 
 			// -id --i2c-device-id
-			if (!strcmp(argv[i],"-id") || !strcmp(argv[i],"--i2c-device-id")){
+			if (!strcmp(argv[i], "-id") || !strcmp(argv[i], "--i2c-device-id")){
 				if (i != argc-1) {
 					options->i2cId = str2num(argv[i+1]);		
 					if ( options->i2cId == (char)-1){
@@ -1233,31 +1233,31 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 					}
 					i++;
 				} else {
-					ulog(ERROR,"%s Flag must have an id specified",argv[i]);
+					ulog(ERROR,"%s Flag must have an id specified", argv[i]);
 					return -1;
 				}
 			}
 
 			// -l --limit
-			if (!strcmp(argv[i],"-l") || !strcmp(argv[i],"--limit")){
+			if (!strcmp(argv[i], "-l") || !strcmp(argv[i], "--limit")){
 				if (i != argc-1) {
-					ulog(INFO,"Setting limit to %s",argv[i+1]);
+					ulog(INFO,"Setting limit to %s", argv[i+1]);
 					options->limit = str2num(argv[i+1]);
 					if ( options->limit== -1){
 						ulog(ERROR,"Unsupported limit value");
 						return -1;
 					}
 				} else {
-					ulog(ERROR,"%s Flag must have a value specified",argv[i]);
+					ulog(ERROR,"%s Flag must have a value specified", argv[i]);
 					return -1;
 				}
 			}
 			
 			// -m --model
-			if (!strcmp(argv[i],"-m") || !strcmp(argv[i],"--model")){
+			if (!strcmp(argv[i], "-m") || !strcmp(argv[i], "--model")){
 				if (i != argc-1) {
 					options->eepromModel = 0;
-					while(options->eepromModel < END && strcmp(argv[i+1],EEPROM_MODEL_STRINGS[options->eepromModel])){
+					while(options->eepromModel < END && strcmp(argv[i+1], EEPROM_MODEL_STRINGS[options->eepromModel])){
 						options->eepromModel++;
 					}
 					if(options->eepromModel == END){
@@ -1268,40 +1268,40 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 						ulog(FATAL,"Unsupported EEPROM Model");
 						return -1;
 					}
-					ulog(INFO,"Setting EEPROM model to %s",EEPROM_MODEL_STRINGS[options->eepromModel]);
+					ulog(INFO,"Setting EEPROM model to %s", EEPROM_MODEL_STRINGS[options->eepromModel]);
 				} else {
-					ulog(ERROR,"%s Flag must have a model specified",argv[i]);
+					ulog(ERROR,"%s Flag must have a model specified", argv[i]);
 					return -1;
 				}
 			}
 
 			// --no-validate-write
-			if (!strcmp(argv[i],"--no-validate-write")){
+			if (!strcmp(argv[i], "--no-validate-write")){
 				ulog(WARNING,"Disabling write verification");
 				options->validateWrite = 0;
 			}
 
 			// -rb --read-byte
-			if (!strcmp(argv[i],"-rb") || !strcmp(argv[i],"--read-byte")){
+			if (!strcmp(argv[i], "-rb") || !strcmp(argv[i], "--read-byte")){
 				if (options->action != READ_SINGLE_BYTE_FROM_ROM && options->action != NOTHING){
 					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+						"%s flag specified but another action has already be set. Ignoring %s flag.", argv[i], argv[i]);
 				} else if (i != argc-1) {
 					options->addressParam = str2num(argv[i+1]);
 					if ( options->addressParam == -1) {
 						ulog(ERROR,"Invalid number. Exiting.");
 						return -1;
 					}
-					ulog(INFO,"Reading single byte from Address %s",argv[i+1]);
+					ulog(INFO,"Reading single byte from Address %s", argv[i+1]);
 					options->action = READ_SINGLE_BYTE_FROM_ROM;
 				}else {
-					ulog(ERROR,"%s Flag must have a value specified",argv[i]);
+					ulog(ERROR,"%s Flag must have a value specified", argv[i]);
 					return -1;
 				}
 			}
 
 			// -q --quick
-			if (!strcmp(argv[i],"-q") || !strcmp(argv[i],"--quick")){
+			if (!strcmp(argv[i], "-q") || !strcmp(argv[i], "--quick")){
 					ulog(INFO,"Using quick operations. Implied --force and --no-validate-write.");
 					options->quick = 1;
 					if (i != argc-1) {
@@ -1311,65 +1311,65 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 						options->readChunk = 8192;
 					}
 					if ( options->readChunk != -1 && options->readChunk != 0 ){
-						ulog(INFO,"Setting read chunk to %i",options->readChunk );
+						ulog(INFO,"Setting read chunk to %i", options->readChunk );
 					}
 				}
 			}
 
 			// -s --start
-			if (!strcmp(argv[i],"-s") || !strcmp(argv[i],"--start")){
+			if (!strcmp(argv[i], "-s") || !strcmp(argv[i], "--start")){
 				if (i != argc-1) {
 					options->startValue = str2num(argv[i+1]);
-					ulog(INFO,"Setting starting value to %i",options->startValue);
+					ulog(INFO,"Setting starting value to %i", options->startValue);
 					if ( options->startValue == -1){
 						ulog(FATAL,"Unsupported starting value");
 						return -1;
 					}
 				} else {
-					ulog(ERROR,"%s Flag must have a value specified",argv[i]);
+					ulog(ERROR,"%s Flag must have a value specified", argv[i]);
 					return -1;
 				}
 			}
 
 			// -t --text 
-			if (!strcmp(argv[i],"-t") || !strcmp(argv[i],"--text")){
+			if (!strcmp(argv[i], "-t") || !strcmp(argv[i], "--text")){
 				ulog(INFO,"Setting filetype to text");
 				options->fileType = TEXT_FILE;
 			}
 
 			// -w --write
-			if (!strcmp(argv[i],"-w") || !strcmp(argv[i],"--write")){
+			if (!strcmp(argv[i], "-w") || !strcmp(argv[i], "--write")){
 				if (options->action != WRITE_FILE_TO_ROM && options->action != NOTHING){
 					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+						"%s flag specified but another action has already be set. Ignoring %s flag.", argv[i], argv[i]);
 				} else if (i != argc-1) {
 					ulog(INFO,"Writing File to EEPROM");
 					options->action = WRITE_FILE_TO_ROM;
 					options->filename = argv[i+1];
-					ulog(INFO,"Setting filename to %s",options->filename);
+					ulog(INFO,"Setting filename to %s", options->filename);
 				} else {
-					ulog(ERROR,"%s Flag must have a filename specified",argv[i]);
+					ulog(ERROR,"%s Flag must have a filename specified", argv[i]);
 					return -1;
 				}
 			}
 
 			// -wd --write-delay
-			if (!strcmp(argv[i],"-wd") || !strcmp(argv[i],"--write-delay")){
+			if (!strcmp(argv[i], "-wd") || !strcmp(argv[i], "--write-delay")){
 				ulog(INFO,"Using Write Cycle Delay instead of Polling");
 				options->useWriteCyclePolling = 0;
 				if (i != argc-1) {
 					options->writeCycleUSec = str2num(argv[i+1]);
 					if ( options->writeCycleUSec != -1 && options->writeCycleUSec != 0 ){
-						ulog(INFO,"Setting write cycle delay time to %i",options->writeCycleUSec);
+						ulog(INFO,"Setting write cycle delay time to %i", options->writeCycleUSec);
 					}
 				}
 			}
 
 			// -wb --write-byte
-			if (!strcmp(argv[i],"-wb") || !strcmp(argv[i],"--write-byte")){
+			if (!strcmp(argv[i], "-wb") || !strcmp(argv[i], "--write-byte")){
 				if (options->action != WRITE_SINGLE_BYTE_TO_ROM && options->action != NOTHING){
 					ulog(WARNING, \
-						"%s flag specified but another action has already be set. Ignoring %s flag.",argv[i],argv[i]);
+						"%s flag specified but another action has already be set. Ignoring %s flag.", argv[i], argv[i]);
 				} else if (i < argc-2) {
 					options->addressParam = str2num(argv[i+1]);
 					options->dataParam = str2num(argv[i+2]);
@@ -1381,18 +1381,18 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 						ulog(ERROR,"Data byte too large. Please specify a value less than 256.");
 						return -1;
 					}
-					ulog(INFO,"Writing Byte %s to Address %s",argv[i+2],argv[i+1]);
+					ulog(INFO,"Writing Byte %s to Address %s", argv[i+2], argv[i+1]);
 					options->action = WRITE_SINGLE_BYTE_TO_ROM;
 				} else  {
-					ulog(ERROR,"%s Flag must have an address and data specified",argv[i]);
+					ulog(ERROR,"%s Flag must have an address and data specified", argv[i]);
 					return -1;
 				}
 			}
 
 			// -y --yes
-			if (!strcmp(argv[i],"-y") || !strcmp(argv[i],"--yes")){
-					ulog(INFO,"Not prompting for writes or erasure.");
-					options->promptUser = 0;
+			if (!strcmp(argv[i], "-y") || !strcmp(argv[i], "--yes")){
+				ulog(INFO,"Not prompting for writes or erasure.");
+				options->promptUser = 0;
 			}
 
 		}
