@@ -285,8 +285,13 @@ void setEEPROMParameters(struct OPTIONS* options, struct EEPROM* eeprom){
 	eeprom->pageSize = EEPROM_PAGE_SIZE[options->eepromModel];
 	eeprom->addressSize = EEPROM_ADDRESS_SIZE[options->eepromModel];
 	eeprom->quick = options->quick;
+	if( options->readChunk == -1 || options->readChunk == 0){
+		eeprom->readChunk = eeprom->pageSize;
+	} else {
+		eeprom->readChunk = options->readChunk;
+	}
 	
-	if( options->writeCycleUSec == -1){
+	if( options->writeCycleUSec == -1 || options->writeCycleUSec == 0){
 		eeprom->writeCycleTime = EEPROM_WRITE_CYCLE_USEC[options->eepromModel];
 	}else{
     	eeprom->writeCycleTime = options->writeCycleUSec;
@@ -445,7 +450,7 @@ int readNumBytesFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 		ulog(WARNING,"Addresses requested exceeds eeprom size. Only reading %i bytes",numBytesToRead);
 	}
 
-	int maxBytesToRead = eeprom->pageSize-(addressToRead%eeprom->pageSize);
+	int maxBytesToRead = eeprom->readChunk-(addressToRead%eeprom->readChunk);
 	if(maxBytesToRead < numBytesToRead){
 		numBytesToRead = maxBytesToRead;
 		ulog(DEBUG,"Addresses requested crosses page boundary. Only reading %i bytes",numBytesToRead);
@@ -631,16 +636,20 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 
 		int bytesWritten = numBytesToWrite;
 		char bytesToWriteBuf[numBytesToWrite];
-		while(addressToWrite < eeprom->limit && err != -1){
+		while(addressToWrite < eeprom->limit && err != -1 && addressToWrite < fileSize){
 			int i = 0;
 			while(bytesWritten < numBytesToWrite){
 				bytesToWriteBuf[i++] = bytesToWriteBuf[bytesWritten++];
 			}
-			while((i < numBytesToWrite && (dataToWrite = fgetc(romFile)) != EOF)) {
+			while((i < numBytesToWrite && addressToWrite+i < fileSize && \
+			        addressToWrite+i < eeprom->limit && (dataToWrite = fgetc(romFile)) != EOF)) {
 				bytesToWriteBuf[i++] = dataToWrite;
 			}
+			if(dataToWrite == EOF){
+				printf("ADDRESS: %i\n",addressToWrite);
+			}
 
-			bytesWritten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, numBytesToWrite);
+			bytesWritten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, i);
 			if( bytesWritten != -1){
 				addressToWrite += bytesWritten;
 			} else{
@@ -663,26 +672,26 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 	unsigned int fileSize = setupFileToRead(romFile,eeprom->startValue);
 
 	if(eeprom->quick){
-		int numBytesToCompare = eeprom->pageSize;
-		if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
+		int numBytesToCompare = eeprom->readChunk;
+		if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
 			numBytesToCompare = eeprom->limit-eeprom->startValue;
 		}
 
 		int bytesRead = numBytesToCompare;
 		char bytesToCompareBuf[numBytesToCompare+eeprom->addressSize];
 		char bytesFromFileBuf[numBytesToCompare+eeprom->addressSize];
-		while(addressToCompare < eeprom->limit && bytesNotMatched != -1){
+		while(addressToCompare < eeprom->limit && bytesNotMatched != -1 && addressToCompare < fileSize){
 			int i = 0;
 			while(bytesRead < numBytesToCompare){
 				bytesFromFileBuf[i++] = bytesFromFileBuf[bytesRead++];
 			}
-			while((i < numBytesToCompare && (dataToCompare = fgetc(romFile)) != EOF)) {
+			while((i < numBytesToCompare && addressToCompare+i < fileSize && \
+					addressToCompare+i < eeprom->limit && (dataToCompare = fgetc(romFile)) != EOF)) {
 				bytesFromFileBuf[i++] = dataToCompare;
 			}
 
-			bytesRead = readNumBytesFromAddress(gpioConfig, eeprom, bytesToCompareBuf, addressToCompare, numBytesToCompare);
+			bytesRead = readNumBytesFromAddress(gpioConfig, eeprom, bytesToCompareBuf, addressToCompare, i);
 			if( bytesRead != -1){
-				addressToCompare += bytesRead;
 				for(int i = 0;i < bytesRead; i++){
 					if(bytesFromFileBuf[i] != bytesToCompareBuf[i]){
 						ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
@@ -690,6 +699,7 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 						bytesNotMatched++;
 					}
 				}
+				addressToCompare += bytesRead;
 			} else{
 				bytesNotMatched = -1;
 			}
@@ -735,8 +745,8 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 	case 3: // labeled
 		if(eeprom->quick){
 			int addressToRead = eeprom->startValue;
-			int numBytesToRead = eeprom->pageSize;
-			if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
+			int numBytesToRead = eeprom->readChunk;
+			if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
 				numBytesToRead = eeprom->limit-eeprom->startValue;
 			}
 
@@ -772,8 +782,8 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 
 		if(eeprom->quick){
 			int addressToRead = eeprom->startValue;
-			int numBytesToRead = eeprom->pageSize;
-			if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
+			int numBytesToRead = eeprom->readChunk;
+			if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
 				numBytesToRead = eeprom->limit-eeprom->startValue;
 			}
 
@@ -802,8 +812,8 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 	case 2: // text
 		if(eeprom->quick){
 			int addressToRead = eeprom->startValue;
-			int numBytesToRead = eeprom->pageSize;
-			if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
+			int numBytesToRead = eeprom->readChunk;
+			if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
 				numBytesToRead = eeprom->limit-eeprom->startValue;
 			}
 
@@ -868,8 +878,8 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 
 		if(eeprom->quick){
 			int addressToRead = eeprom->startValue;
-			int numBytesToRead = eeprom->pageSize;
-			if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
+			int numBytesToRead = eeprom->readChunk;
+			if(eeprom->limit-eeprom->startValue < eeprom->readChunk){
 				numBytesToRead = eeprom->limit-eeprom->startValue;
 			}
 
@@ -998,7 +1008,8 @@ void printHelp(){
 	fprintf(stdout," -r [N],    --read [N]      Read the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY\n");
 	fprintf(stdout," -rb N,     --read-byte ADDRESS\n"); 
 	fprintf(stdout,"                            Read From specified ADDRESS.\n"); 
-	fprintf(stdout," -q,        --quick         Operates on multiple bytes at once. Implied --force.\n");
+	fprintf(stdout," -q [N],     --quick [N]    Operates on N bytes at once for reads. Page Size if unspecified or writes.\n");
+	fprintf(stdout,"                            Implied --force and --no-validate-write.\n");
 	fprintf(stdout," -rb N,     --read-byte ADDRESS \n");
 	fprintf(stdout,"                            Read From specified ADDRESS.\n");
 	fprintf(stdout," -s N,      --start N       Specify the minimum address to operate.\n");
@@ -1046,6 +1057,7 @@ void setDefaultOptions(struct OPTIONS* options){
     options->chipname = chipname;
     options->numGPIOLines = 28;
 	options->quick = 0;
+	options->readChunk = -1;
 }
 
 /* Parses and processes all command line arguments */
@@ -1240,8 +1252,18 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 
 			// -q --quick
 			if (!strcmp(argv[i],"-q") || !strcmp(argv[i],"--quick")){
-					ulog(INFO,"Using quick operations. Implied --force.");
+					ulog(INFO,"Using quick operations. Implied --force and --no-validate-write.");
 					options->quick = 1;
+					if (i != argc-1) {
+					options->readChunk = str2num(argv[i+1]);
+					if(options->readChunk > 8192){
+						ulog(WARNING,"Read Chunk set above maximum: 8192. Setting to 8192.");
+						options->readChunk = 8192;
+					}
+					if ( options->readChunk != -1 && options->readChunk != 0 ){
+						ulog(INFO,"Setting read chunk to %i",options->readChunk );
+					}
+				}
 			}
 
 			// -s --start

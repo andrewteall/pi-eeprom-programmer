@@ -101,6 +101,7 @@
         int numGPIOLines;
         char eraseByte;
         int quick;
+        int readChunk;
         };  
 
     /**
@@ -122,6 +123,8 @@
         int limit;
         int startValue;
         int fileType;
+        int quick;
+        int readChunk;
         
         int size;
         int maxAddressLength;
@@ -133,7 +136,6 @@
         char writeProtectPin;
         int pageSize;
         int addressSize;
-        int quick;
 
         // Info
         int model;

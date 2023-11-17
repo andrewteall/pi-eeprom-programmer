@@ -22,8 +22,6 @@ See [Flags](../README.md#command-line-options)
 ## __Quirks__
 --no-validate-write has no affect on I2C devices.
 
-Because the program uses the read() call to read I2C devices paged reads and writes aren't implemented since read() can read any number of bytes up to 8192 bytes in a single call(in my testing).
-
 ## __Updating__
 Updates can be performed by just running
 ```sh
