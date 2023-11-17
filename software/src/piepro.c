@@ -47,14 +47,14 @@ const int EEPROM_WRITE_CYCLE_USEC[] = 	{
 
 const int EEPROM_PAGE_SIZE[] = 	{
 									-1,-1,
-									-1,-1,-1,
+									-1,-1,64,
 									8,8,16,16,16,
 									32,32,64,64,128
 									};
 
 const int EEPROM_ADDRESS_SIZE[] = 	{
 										-1,-1,
-										-1,-1,-1,
+										-1,-1,2,
 										1,1,2,2,2,
 										2,2,2,2,2
 										};
@@ -123,6 +123,7 @@ int finishWriteCycle(struct EEPROM* eeprom, struct GPIO_CONFIG* gpioConfig, int 
 /* Writes bytes to an EEPROM via Parallel GPIO */
 int setBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int addressToWrite, \
 						char* data, int numBytesToWrite){
+	int numBytesWritten = 0;
 	for(int j=0;j < numBytesToWrite; j++){
 		// set the address
 		setAddressPins(gpioConfig, eeprom, addressToWrite);
@@ -141,8 +142,9 @@ int setBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int 
 		setPinLevel(gpioConfig,eeprom->writeEnablePin,HIGH);
 		
 		finishWriteCycle(eeprom,gpioConfig,data[j]);
+		++numBytesWritten;
 	}
-	return 0;
+	return numBytesWritten;
 }
 
 /* Write a single byte to an EEPROM via Parallel GPIO */
@@ -505,20 +507,26 @@ int writeNumBytesToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom
 		ulog(WARNING,"Addresses requested exceeds eeprom size. Only writing %i bytes",numBytesToWrite);
 	}
 
+	if(addressToWrite+numBytesToWrite-1 > eeprom->limit){
+		numBytesToWrite = eeprom->limit - addressToWrite ;
+	}
+
 	int maxBytesToWrite = eeprom->pageSize-(addressToWrite%eeprom->pageSize);
 	if(maxBytesToWrite < numBytesToWrite){
 		numBytesToWrite = maxBytesToWrite;
 		ulog(DEBUG,"Addresses requested crosses page boundary. Only writing %i bytes",numBytesToWrite);
 	}
 
+
 	if (eeprom->type == I2C){
 		setPinLevel(gpioConfig,eeprom->writeProtectPin,LOW);
 		numBytesWritten = setBytesI2C(eeprom,addressToWrite,byteBuffer,numBytesToWrite);
-		if(numBytesWritten != -1){
-			eeprom->byteWriteCounter += numBytesWritten-eeprom->addressSize;
-		}
 	} else {
-		setBytesParallel(gpioConfig,eeprom,addressToWrite,byteBuffer,numBytesToWrite);
+		numBytesWritten = setBytesParallel(gpioConfig,eeprom,addressToWrite,byteBuffer,numBytesToWrite);
+	}
+	
+	if(numBytesWritten != -1){
+		eeprom->byteWriteCounter += numBytesWritten-eeprom->addressSize;
 	}
 	if(numBytesWritten-eeprom->addressSize != numBytesToWrite){
 		numBytesWritten = -1;
@@ -924,37 +932,50 @@ void printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, 
 	}
 }
 
-/* Open and write a binary file to the EEPROM */
+/* Erase EEPROM */
 int eraseEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char eraseByte){
 	int err = 0;
-	
+
+	// Set the start value to erase
 	if(eeprom->startValue >= eeprom->size){
-			return -1;
+		ulog(ERROR,"Address out of range of EEPROM: 0x%02x",eeprom->startValue);
+		return -1;
 	}
+
 	if(eeprom->quick){
-		int numBytesToWrite = eeprom->pageSize;
-		if(eeprom->limit-eeprom->startValue < eeprom->pageSize){
-			numBytesToWrite = eeprom->limit-eeprom->startValue;
+		// Check to see if paging is supported
+		if(eeprom->pageSize < 0){
+			ulog(ERROR,"EEPROM does not support paging. Remove -q or --quick flag.");
+			return -1;
 		}
-		char bytesToWriteBuf[numBytesToWrite];
-		memset(bytesToWriteBuf,eraseByte,numBytesToWrite);
 		
+		// Setup variables
 		int addressToWrite = eeprom->startValue;
+		int numBytesToWrite = eeprom->pageSize;
+		
+		// Initialize Array to 0s the size of the number of bytes to write
+		if(eeprom->limit - eeprom->startValue < eeprom->pageSize){
+			numBytesToWrite = eeprom->limit - eeprom->startValue;
+		}
+		char bytesToWriteBuf[numBytesToWrite + eeprom->addressSize];
+		memset(bytesToWriteBuf, eraseByte, numBytesToWrite + eeprom->addressSize);
+		
+		// Perform the erase
 		while(addressToWrite < eeprom->limit && err != -1){
 			int bytesWritten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, numBytesToWrite);
 			if( bytesWritten != -1){
 				addressToWrite += bytesWritten;
-			} else{
+			} else {
 				err = -1;
 			}
 		}
 	} else {
+		// Perform the erase
 		for(int i = eeprom->startValue; i < eeprom->limit; i++) {
 			err |= writeByteToAddress(gpioConfig, eeprom, i, eraseByte);
 		}
 	}
 	return err;
-
 }
 
 /* Free and release hardware */
@@ -1019,6 +1040,7 @@ void printHelp(){
 	fprintf(stdout," -wb ADDRESS DATA, --write-byte ADDRESS DATA \n");
 	fprintf(stdout,"                            Write specified DATA to ADDRESS.\n");
 	fprintf(stdout," -wd [N],   --write-delay N Enable write delay. N Number of microseconds to delay between writes.\n");
+	fprintf(stdout," -y,        --yes           Automatically answer Yes to write or erase EEPROM.\n");
 	fprintf(stdout,"\n");
 	fprintf(stdout,"\n");
 	printSupportedEEPROMs();
@@ -1045,6 +1067,9 @@ void setDefaultOptions(struct OPTIONS* options){
 	options->useWriteCyclePolling = 1;
 	options->boardType = RPI4;
 	options->eraseByte = 0xFF;
+	options->quick = 0;
+	options->readChunk = -1;
+	options->promptUser = 1;
 	// Single Read/Write Parameters
     options->addressParam = 0;
     options->dataParam = 0;
@@ -1053,8 +1078,6 @@ void setDefaultOptions(struct OPTIONS* options){
 	options->consumer = consumer;
     options->chipname = chipname;
     options->numGPIOLines = 28;
-	options->quick = 0;
-	options->readChunk = -1;
 }
 
 /* Parses and processes all command line arguments */
@@ -1334,6 +1357,12 @@ int  parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 					ulog(ERROR,"%s Flag must have an address and data specified",argv[i]);
 					return -1;
 				}
+			}
+
+			// -y --yes
+			if (!strcmp(argv[i],"-y") || !strcmp(argv[i],"--yes")){
+					ulog(INFO,"Not prompting for writes or erasure.");
+					options->promptUser = 0;
 			}
 
 		}
