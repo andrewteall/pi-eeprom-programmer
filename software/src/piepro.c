@@ -645,9 +645,6 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 			        addressToWrite+i < eeprom->limit && (dataToWrite = fgetc(romFile)) != EOF)) {
 				bytesToWriteBuf[i++] = dataToWrite;
 			}
-			if(dataToWrite == EOF){
-				printf("ADDRESS: %i\n",addressToWrite);
-			}
 
 			bytesWritten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, i);
 			if( bytesWritten != -1){
