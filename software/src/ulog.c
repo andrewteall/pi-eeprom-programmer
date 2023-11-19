@@ -25,7 +25,7 @@ void ulog(int verbosity, const char* logMessage,...) {
 /* Sets the LoggingLevel to the specified newLogLevel. Fails and returns -1 if 
    an invalid newLogLevel is passed. Otherwise, returns 0. */
 int setLoggingLevel(int newLogLevel){
-	if( newLogLevel < DEBUG || newLogLevel > OFF){
+	if( newLogLevel < DEBUG && newLogLevel > OFF){
 		loggingLevel = newLogLevel;
 		ulog(INFO,"Setting Logging Level to [%i] %s",newLogLevel,LOGLEVELSTRINGS[newLogLevel]);
 		return 0;
