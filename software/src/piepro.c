@@ -46,15 +46,15 @@ const int EEPROM_WRITE_CYCLE_USEC[] = 	{
 										};
 
 const int EEPROM_PAGE_SIZE[] = 	{
-									-1,-1,
-									-1,-1,64,
+									16,16,
+									16,16,64,
 									8,8,16,16,16,
 									32,32,64,64,128
 									};
 
 const int EEPROM_ADDRESS_SIZE[] = 	{
-										-1,-1,
-										-1,-1,2,
+										0,0,
+										0,0,0,
 										1,1,2,2,2,
 										2,2,2,2,2
 										};
