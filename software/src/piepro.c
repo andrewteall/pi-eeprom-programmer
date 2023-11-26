@@ -771,6 +771,8 @@ int printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, i
 		eeprom->limit = EEPROM_MODEL_SIZE[eeprom->model];
 	}
 	
+	int beginPrint = eeprom->startValue;
+
 	switch (format) {
 	case LABELED:
 		if(eeprom->quick){
@@ -901,7 +903,7 @@ int printEEPROMContents(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, i
 		break;
 	case PRETTY:
 	default:
-		int beginPrint = eeprom->startValue;
+		
 		if ((eeprom->startValue % 16) != 0){
 			eeprom->startValue = eeprom->startValue - (eeprom->startValue % 16);
 		}
