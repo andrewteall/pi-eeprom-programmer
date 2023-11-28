@@ -684,7 +684,7 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 		}
 	} else {
 		while((addressToWrite < eeprom->limit && addressToWrite < fileSize && (dataToWrite = fgetc(romFile)) != EOF)) {
-			err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite++, dataToWrite);
+			err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite++, (char)dataToWrite);
 		}
 	}
 
@@ -693,7 +693,7 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 
 /* Compare a binary file to EEPROM */
 int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, FILE *romFile){
-	char dataToCompare;
+	int dataToCompare;
 	int addressToCompare = eeprom->startValue;
 	int bytesNotMatched = 0;
 	unsigned int fileSize = setupFileToRead(romFile, eeprom->startValue);
@@ -716,7 +716,7 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 
 			while((i < numBytesToCompare && addressToCompare+i < fileSize && \
 					addressToCompare+i < eeprom->limit && (dataToCompare = fgetc(romFile)) != EOF)) {
-				bytesFromFileBuf[i++] = dataToCompare;
+				bytesFromFileBuf[i++] = (char)dataToCompare;
 			}
 
 			bytesRead = readNumBytesFromAddress(gpioConfig, eeprom, bytesToCompareBuf, addressToCompare, i);
@@ -736,9 +736,9 @@ int compareBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eep
 	} else {
 		while(((dataToCompare = fgetc(romFile)) != EOF) && addressToCompare < fileSize && addressToCompare < eeprom->limit) {
 			char byte = readByteFromAddress(gpioConfig, eeprom, addressToCompare);
-			if (byte != dataToCompare){
+			if (byte != (char)dataToCompare){
 				ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", \
-															addressToCompare, byte, dataToCompare);
+															addressToCompare, byte, (char)dataToCompare);
 				bytesNotMatched++;
 			}
 			addressToCompare++;
