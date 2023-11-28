@@ -122,10 +122,10 @@ $(BIN_DIR)$(TARGET_TEST_EXEC): $(TEST_OBJS) $(OBJS)
 # Test
 ################################################################################
 .PHONY: test
-test: test_harness_piepro test_run test_clean
+test: test_harness_piepro test_run
 
 .PHONY: test_I2C
-test_I2C: test_harness_piepro test_run_I2C test_clean
+test_I2C: test_harness_piepro test_run_I2C
 
 .PHONY: test_run
 test_run:
