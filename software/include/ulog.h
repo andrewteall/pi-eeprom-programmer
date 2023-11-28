@@ -4,7 +4,7 @@
     /**
      * @brief Defines the Logging Levels used by uLog.
      */
-    enum LOGLEVEL {OFF, FATAL, ERROR, WARNING, INFO, DEBUG};
+    enum LOGLEVEL {OFF=0, FATAL, ERROR, WARNING, INFO, DEBUG, TRACE,};
 
     /**
      * @brief Prints a message to stdout with the loggingLevel prepended.

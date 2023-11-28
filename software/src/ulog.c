@@ -4,8 +4,7 @@
 #include "ulog.h"
 
 /* Strings that correlate to LOGLEVEL enum so that LOGLEVEL can be printed */
-const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG",};
-const char *LOGLEVELSTRINGSPACERS[] = {"","\t ", "\t ", " ", "\t ", "\t ",};
+const char *LOGLEVELSTRINGS[] = {"OFF","FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "TRACE",};
 
 /* Static global Logging Level to track verbosity across the program */
 static int loggingLevel = WARNING;
@@ -18,14 +17,14 @@ void ulog(int verbosity, const char* logMessage,...) {
 		va_start(args, logMessage);
 		vsnprintf(logBuf,sizeof(logBuf),logMessage, args);
 		va_end(args);
-    	fprintf(stderr,"%s:%s%s\n", LOGLEVELSTRINGS[verbosity],LOGLEVELSTRINGSPACERS[verbosity], logBuf);
+    	fprintf(stderr,"%8s:  %s\n", LOGLEVELSTRINGS[verbosity],logBuf);
 	}
 }
 
 /* Sets the LoggingLevel to the specified newLogLevel. Fails and returns -1 if 
    an invalid newLogLevel is passed. Otherwise, returns 0. */
 int setLoggingLevel(int newLogLevel){
-	if( newLogLevel <= DEBUG && newLogLevel >= OFF){
+	if( newLogLevel <= TRACE && newLogLevel >= OFF){
 		loggingLevel = newLogLevel;
 		ulog(INFO,"Setting Logging Level to [%i] %s",newLogLevel,LOGLEVELSTRINGS[newLogLevel]);
 		return 0;

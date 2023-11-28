@@ -132,7 +132,7 @@ Options:
  -t,        --text          Interpret file as a text. Default: binary
                             Text File format:
                             [00000000]00000000 00000000
- -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG. Default: WARNING
+ -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG 6=TRACE. Default: WARNING
             --version       Print the piepro version and exit.
  -w FILE,   --write FILE    Write EEPROM with specified file.
  -wb ADDRESS DATA, --write-byte ADDRESS DATA 

@@ -125,7 +125,7 @@ int setBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char
 						int addressToWrite, int numBytesToWrite){
 	int numBytesWritten = 0;
 	for(int j = 0; j < numBytesToWrite; j++){
-		// ulog(DEBUG,"Writing byte: %i to address: %i", data[j], addressToWrite+j);
+		ulog(TRACE,"Writing byte: %i to address: %i", data[j], addressToWrite+j);
 		// set the address
 		setAddressPins(gpioConfig, eeprom, addressToWrite+j);
 
@@ -1077,7 +1077,7 @@ void printHelp(){
 	fprintf(stdout," -t,        --text          Interpret file as a text. Default: binary\n");
 	fprintf(stdout,"                            Text File format:\n");
 	fprintf(stdout,"                            [00000000]00000000 00000000\n");
-	fprintf(stdout," -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG. Default: WARNING\n");
+	fprintf(stdout," -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG 6=TRACE. Default: WARNING\n");
 	fprintf(stdout,"            --version       Print the piepro version and exit.\n");
 	fprintf(stdout," -w FILE,   --write FILE    Write EEPROM with specified file.\n");
 	fprintf(stdout," -wb ADDRESS DATA, --write-byte ADDRESS DATA \n");
@@ -1139,8 +1139,9 @@ int parseCommandLineOptions(struct OPTIONS* options, int argc, char* argv[]){
 			}
 
 			//-v -vvvv
-			if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--v") || !strcmp(argv[i], "--vv") \
-				|| !strcmp(argv[i], "--vvv") || !strcmp(argv[i], "--vvvv")|| !strcmp(argv[i], "--vvvvv")){
+			if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--v") || !strcmp(argv[i], "--vv") || \
+				!strcmp(argv[i], "--vvv") || !strcmp(argv[i], "--vvvv") || !strcmp(argv[i], "--vvvvv") || \
+				!strcmp(argv[i], "--vvvvvv")){
 				int verbosity = 0;
 				if (!strcmp(argv[i], "-v")){
 					if (i != argc-1) {
