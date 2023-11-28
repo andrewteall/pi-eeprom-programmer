@@ -30,6 +30,7 @@ int main(int argc, char *argv[]){
         switch(options.action){
             case WRITE_FILE_TO_ROM:
             case COMPARE_FILE_TO_ROM:
+            {
                 // open file to read
                 FILE* romFile = fopen(options.filename, "r");
                 if(romFile == NULL){
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]){
                     break;
                 }
                 if(options.action == WRITE_FILE_TO_ROM){
-                    char confirmation;
+                    char confirmation = 'n';
                     if(options.promptUser){
                         printf("Are you sure you want to write to the EEPROM? y/N\n");
                         confirmation = getchar();  
@@ -50,7 +51,7 @@ int main(int argc, char *argv[]){
                         printf("Aborting write operation.\n");
                         break;
                     }
-                    
+
                 } else {
                     int bytesNotMatched = compareFileToEEPROM(&gpioConfig, &eeprom, romFile);
                     if(bytesNotMatched == 0) {
@@ -63,13 +64,15 @@ int main(int argc, char *argv[]){
                         fprintf(stderr,"%i bytes do not match\n", bytesNotMatched);
                     }
                 }
-                fclose(romFile);
+                fclose(romFile);   
                 break;
+            }
             case DUMP_ROM:
                 error = printEEPROMContents(&gpioConfig, &eeprom, options.dumpFormat);
                 break;
             case ERASE_ROM:
-                char confirmation;
+            {
+                char confirmation = 'n';
                 if(options.promptUser){
                     printf("Are you sure you want to erase the EEPROM? y/N\n");
                     confirmation = getchar();  
@@ -89,6 +92,7 @@ int main(int argc, char *argv[]){
                     fprintf(stdout,"Unable to completely erase EEPROM with 0x%02x\n", options.eraseByte);
                 }
                 break;
+            }
             case WRITE_SINGLE_BYTE_TO_ROM:
                 error = writeByteToAddress(&gpioConfig, &eeprom, options.addressParam, options.dataParam);
                 if(!error){
@@ -98,6 +102,7 @@ int main(int argc, char *argv[]){
                 }
                 break;
             case READ_SINGLE_BYTE_FROM_ROM:
+            {
                 int readVal = readByteFromAddress(&gpioConfig, &eeprom, options.addressParam);
                 if(readVal != -1){
                     fprintf(stdout,"0x%02x\n", readVal);
@@ -105,6 +110,7 @@ int main(int argc, char *argv[]){
                     error = readVal;
                 }
                 break;
+            }
             case NOTHING:
 		        fprintf(stdout,"No action specified. Run piepro -h for a list of options\n");
                 break;
