@@ -125,8 +125,9 @@ int setBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char
 						int addressToWrite, int numBytesToWrite){
 	int numBytesWritten = 0;
 	for(int j = 0; j < numBytesToWrite; j++){
+		// ulog(DEBUG,"Writing byte: %i to address: %i", data[j], addressToWrite+j);
 		// set the address
-		setAddressPins(gpioConfig, eeprom, addressToWrite);
+		setAddressPins(gpioConfig, eeprom, addressToWrite+j);
 
 		// disable output from the chip
 		setPinLevel(gpioConfig, eeprom->outputEnablePin, HIGH);
@@ -533,12 +534,14 @@ int writeNumBytesToAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom
 		numBytesWritten = setBytesI2C(gpioConfig, eeprom, byteBuffer, addressToWrite, numBytesToWrite);
 	} else {
 		numBytesWritten = setBytesParallel(gpioConfig, eeprom, byteBuffer, addressToWrite, numBytesToWrite);
+		numBytesWritten += eeprom->addressSize;
 	}
 	
 	if(numBytesWritten != -1){
 		eeprom->byteWriteCounter += numBytesWritten - eeprom->addressSize;
 	}
 	if(numBytesWritten-eeprom->addressSize != numBytesToWrite){
+		ulog(ERROR,"Cannot write %i bytes starting at address: %i", numBytesToWrite, addressToWrite);
 		numBytesWritten = -1;
 	}
 
@@ -647,7 +650,7 @@ int compareTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eepro
 
 /* Open and write a binary file to the EEPROM */
 int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, FILE *romFile){
-	char dataToWrite;
+	int dataToWrite;
 	int addressToWrite = eeprom->startValue;
 	int err = 0;
 	unsigned int fileSize = setupFileToRead(romFile, eeprom->startValue);
@@ -667,13 +670,13 @@ int writeBinaryFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 				bytesToWriteBuf[i++] = bytesToWriteBuf[bytesWritten++];
 			}
 
-			while((i < numBytesToWrite && addressToWrite+i < fileSize && \
-			        addressToWrite+i < eeprom->limit && (dataToWrite = fgetc(romFile)) != EOF)) {
-				bytesToWriteBuf[i++] = dataToWrite;
+			while((i < numBytesToWrite && addressToWrite+i < eeprom->limit && (dataToWrite = fgetc(romFile)) != EOF)) {
+				bytesToWriteBuf[i++] = (char)dataToWrite;
 			}
 
 			bytesWritten = writeNumBytesToAddress(gpioConfig, eeprom, bytesToWriteBuf, addressToWrite, i);
 			if( bytesWritten != -1){
+				ulog(DEBUG,"Wrote %i bytes",bytesWritten);
 				addressToWrite += bytesWritten;
 			} else{
 				err = -1;
