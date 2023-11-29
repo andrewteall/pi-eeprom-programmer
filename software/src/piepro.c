@@ -161,8 +161,9 @@ int getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char
 						int addressToRead, int numBytesToRead){
 	for(int j = 0; j < numBytesToRead; j++){
 		int byteVal = 0;
+		ulog(TRACE,"Comparing byte: %i to address: %i", buf[j], addressToRead+j);
 		// set the address
-		setAddressPins(gpioConfig, eeprom, addressToRead);
+		setAddressPins(gpioConfig, eeprom, addressToRead+j);
 		// enable output from the chip
 		setPinLevel(gpioConfig, eeprom->outputEnablePin, LOW);
 		// set the rpi to input on it's gpio data lines
