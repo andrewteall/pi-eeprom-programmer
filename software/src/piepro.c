@@ -602,7 +602,7 @@ int writeTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eeprom,
 			addressToWrite = getNextFromTextFile(eeprom, romFile);
 			dataToWrite = getNextFromTextFile(eeprom, romFile);
 			
-			if(addressToWrite < eeprom->limit && addressToWrite >= eeprom->startValue){
+			if((unsigned int)addressToWrite < eeprom->limit && (unsigned int)addressToWrite >= eeprom->startValue){
 				if(addressToWrite != -1 && dataToWrite != -1){
 					err |= writeByteToAddress(gpioConfig, eeprom, addressToWrite, dataToWrite);
 				} else {
@@ -626,11 +626,11 @@ int compareTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eepro
 		ulog(ERROR,"Quick action, -q or --quick, not valid for text files");
 		bytesNotMatched = -1;
 	} else {
-		while(address < eeprom->limit && address != -1 && data != -1){
+		while((unsigned int)address < eeprom->limit && address != -1 && data != -1){
 			address = getNextFromTextFile(eeprom, romFile);
 			data = getNextFromTextFile(eeprom, romFile);
 			
-			if(address < eeprom->limit && address >= eeprom->startValue ){
+			if((unsigned int)address < eeprom->limit && (unsigned int)address >= eeprom->startValue ){
 				if(address != -1 && data != -1){
 					int byte = readByteFromAddress(gpioConfig, eeprom, address);
 					if (byte != data){
