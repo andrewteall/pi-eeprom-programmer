@@ -637,7 +637,6 @@ int compareTextFileToEEPROM(struct GPIO_CONFIG* gpioConfig, struct EEPROM *eepro
 						ulog(INFO,"Byte at Address 0x%02x does not match. EEPROM: %i File: %i", address, byte, data);
 						bytesNotMatched++;
 					}
-					eeprom->byteReadCounter++;
 				} else {
 					ulog(ERROR,"Cannot process text file");
 					return -1;
