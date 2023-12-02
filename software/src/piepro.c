@@ -125,9 +125,9 @@ int setBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char
 						int addressToWrite, int numBytesToWrite){
 	int numBytesWritten = 0;
 	for(int j = 0; j < numBytesToWrite; j++){
-		ulog(TRACE,"Writing byte: %i to address: %i", data[j], addressToWrite+j);
+		ulog(TRACE,"Writing byte: %i to address: %i", data[j], addressToWrite);
 		// set the address
-		setAddressPins(gpioConfig, eeprom, addressToWrite+j);
+		setAddressPins(gpioConfig, eeprom, addressToWrite);
 
 		// disable output from the chip
 		setPinLevel(gpioConfig, eeprom->outputEnablePin, HIGH);
@@ -146,6 +146,7 @@ int setBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char
 		setPinLevel(gpioConfig, eeprom->writeEnablePin, HIGH);
 		
 		finishWriteCycle(eeprom, gpioConfig, data[j]);
+		++addressToWrite;
 		++numBytesWritten;
 	}
 	return numBytesWritten;
@@ -159,6 +160,7 @@ int setByteParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, int a
 /* Reads bytes from an EEPROM via Parallel GPIO */
 int getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char* buf, \
 						int addressToRead, int numBytesToRead){
+	int numBytesRead = 0;
 	for(int j = 0; j < numBytesToRead; j++){
 		int byteVal = 0;
 		ulog(TRACE,"Comparing byte: %i to address: %i", buf[j], addressToRead);
@@ -176,9 +178,10 @@ int getBytesParallel(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char
 			byteVal |= (getPinLevel(gpioConfig, eeprom->dataPins[i]) & 1);		
 		}
 		buf[j] = byteVal;
-		addressToRead++;
+		++addressToRead;
+		++numBytesRead;
 	}
-	return numBytesToRead;
+	return numBytesRead;
 }
 
 /* Read a single byte from and EEPROM via Parallel GPIO */
