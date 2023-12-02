@@ -478,7 +478,7 @@ int readNumBytesFromAddress(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eepro
 			eeprom->byteReadCounter += numBytesRead;
 		}
 	} else {
-		numBytesRead = getBytesParallel(gpioConfig, eeprom, byteBuffer, addressToRead, 1);
+		numBytesRead = getBytesParallel(gpioConfig, eeprom, byteBuffer, addressToRead, numBytesToRead);
 		if(numBytesRead != -1){
 			eeprom->byteReadCounter += numBytesRead;
 		}
