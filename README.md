@@ -114,7 +114,8 @@ Usage: piepro [options]
 Options:
  -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.
             --chipname      Specify the chipname to use. Default: gpiochip0
- -d [N],    --dump [N]      Dump the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY
+ -d [N],    --dump [N]      Dump the contents of the EEPROM, 
+                            0=PRETTY_WITH_ASCII, 1=BINARY, 2=TEXT, 3=LABELED, 4=PRETTY. Default: PRETTY_WITH_ASCII
  -e [N],    --erase [N]     Erase eeprom with specified byte. Default: 0xFF
  -f,        --force         Force writing of every byte instead of checking for existing value first.
  -id,       --i2c-device-id The address id of the I2C device.
@@ -123,7 +124,8 @@ Options:
  -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.
             --no-validate-write 
                             Do not perform a read directly after writing to verify the data was written.
- -r [N],    --read [N]      Read the contents of the EEPROM, 0=PRETTY, 1=BINARY, 2=TEXT, 3=LABELED. Default: PRETTY
+ -r [N],    --read [N]      Read the contents of the EEPROM, 
+                            0=PRETTY_WITH_ASCII, 1=BINARY, 2=TEXT, 3=LABELED, 4=PRETTY. Default: PRETTY_WITH_ASCII
  -rb N,     --read-byte ADDRESS 
                             Read From specified ADDRESS.
  -q [N],     --quick [N]    Operates on N bytes at once for reads. Page Size if unspecified or writes. 

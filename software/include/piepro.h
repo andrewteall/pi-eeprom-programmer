@@ -30,7 +30,7 @@
     /**
      * @brief Defines print formats when dumping the EEPROM.
      */
-    enum PRINT_FORMAT {PRETTY=0,BINARY,TEXT,LABELED};
+    enum PRINT_FORMAT {PRETTY_WITH_ASCII=0,BINARY,TEXT,LABELED,PRETTY};
 
     /**
      * @brief Defines the supported functions of the programmer.
