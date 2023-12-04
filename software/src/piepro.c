@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "piepro.h"
@@ -100,17 +101,21 @@ void setDataPins(struct GPIO_CONFIG* gpioConfig, struct EEPROM* eeprom, char dat
 int finishWriteCycle(struct EEPROM* eeprom, struct GPIO_CONFIG* gpioConfig, int dataToCheck){
 	// Finish Write Cycle
 	if(eeprom->useWriteCyclePolling){
+		struct timespec start;
+		struct timespec stop;
 		// Dummy write to wait for Ack from write
+		clock_gettime(CLOCK_REALTIME, &start);
 		if (eeprom->type == I2C){
-			while(writeI2C(eeprom->fd, NULL, 0) == -1){
-				;;
-			}
+			do {
+				clock_gettime(CLOCK_REALTIME, &stop);
+			} while(writeI2C(eeprom->fd, NULL, 0) == -1 && ((stop.tv_sec - start.tv_sec) < 5));
 		} else {
 			setPinMode(gpioConfig, eeprom->dataPins[7], INPUT);
 			setPinLevel(gpioConfig, eeprom->outputEnablePin, LOW);
-			while(getPinLevel(gpioConfig, eeprom->dataPins[7]) ^ (dataToCheck >> 7)){
-				;;
-			}
+			clock_gettime(CLOCK_REALTIME, &start);
+			do {
+				clock_gettime(CLOCK_REALTIME, &stop);
+			} while((getPinLevel(gpioConfig, eeprom->dataPins[7]) ^ (dataToCheck >> 7)) && ((stop.tv_sec - start.tv_sec) < 5));
 		}
 		return 0;
 	} else {
