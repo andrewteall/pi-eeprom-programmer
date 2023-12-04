@@ -2,9 +2,9 @@
     #define PIEPRO_H 1
     #include "gpio.h"
     
-    #define MAJOR "0"
-    #define MINOR "9"
-    #define PATCH "2"
+    #define MAJOR "1"
+    #define MINOR "0"
+    #define PATCH "0"
     #define VERSION  MAJOR "." MINOR "." PATCH
 
     #define MAX_ADDRESS_PINS 16

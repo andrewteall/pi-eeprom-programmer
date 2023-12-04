@@ -1,0 +1,13 @@
+TODO
+===========
+Add 12v circuit support for some EEPROMs.
+
+Move Pin/EEPROM configs to external file.
+
+Support Programming of Microcontrollers like the ATTiny series
+
+Allow custom file paths and custom file names for tests
+
+Make the Man Page Better - https://itsfoss.com/linux-man-page-guide/
+
+Provide Build Builds and Zip of hardware for downloads in releases on github
