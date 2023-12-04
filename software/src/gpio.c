@@ -1,124 +1,203 @@
-#include <gpiod.h>
-#include <unistd.h>
-
-#include <linux/i2c-dev.h>
-#include <stdio.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>			//Needed for I2C port
+#include <gpiod.h>
+#include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
-
+#include <unistd.h>
 
 #include "gpio.h"
 #include "utils.h"
+#include "ulog.h"
 
-#define BCM2708_PERI_BASE        0x20000000
-#define GPIO_BASE                (BCM2708_PERI_BASE + 0x200000) /* GPIO controller */
-#define PAGE_SIZE (4*1024)
-#define BLOCK_SIZE (4*1024)
+#define MAX_USABLE_GPIO_LINES 34
+#define SDA1_PIN 2
+#define SCL1_PIN 3
+#define BLOCK_SIZE 4096
+
+enum ALT_MODE {ALT0=0,ALT1,ALT2,ALT3,ALT4,ALT5};
 
 // GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y)
 #define INP_GPIO(gpio,g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
-#define OUT_GPIO(gpio,g) *(gpio+((g)/10)) |=  (1<<(((g)%10)*3))
 #define SET_GPIO_ALT(gpio,g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
 
-#define GPIO_SET *(gpio+7)  // sets   bits which are 1 ignores bits which are 0
-#define GPIO_CLR *(gpio+10) // clears bits which are 1 ignores bits which are 0
+/* Set the ALT MODE of the specified pin */
+void setPinAltModeGPIO(volatile unsigned int* gpio, int pin, enum ALT_MODE altMode){
+    INP_GPIO(gpio,pin);
+    SET_GPIO_ALT(gpio,pin,altMode);
+}
 
-#define GET_GPIO(g) (*(gpio+13)&(1<<g)) // 0 if LOW, (1<<g) if HIGH
+/* Ensure chip and line number are valid */
+int checkConfigGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber){
+    int rtnVal = 0;
 
-#define GPIO_PULL *(gpio+37) // Pull up/pull down
-#define GPIO_PULLCLK0 *(gpio+38) // Pull up/pull down clock
+    if(gpioChip == NULL){
+        ulog(ERROR,"gpioChip cannot be NULL.");
+        return -1;
+    }
+    if (gpioChip != NULL && gpioChip->isSetup != 1){
+        ulog(ERROR,"GPIO is not setup.");
+        return -1;
+    }
+    if( gpioLineNumber < 0 || gpioLineNumber >= gpioChip->numLinesInUse){
+        ulog(ERROR,"Pin Number: %i is out of range of configured Pins",gpioLineNumber);
+        return -1;
+    }
+    return rtnVal;
+}
 
-#define SDA_PIN 2
-#define SCL_PIN 3
-#define ALT_FUNC 0
-
-
-int setupGPIO(struct gpiod_chip *chip, char* chipname, struct gpiod_line **gpioLines,char* consumer){
+/* Sets up GPIO to be used */
+int setupGPIO(struct GPIO_CHIP* gpioChip){
     int err = 0;
     
-    chip = gpiod_chip_open_by_name(chipname);
+    if(gpioChip == NULL){
+        ulog(ERROR,"gpioChip cannot be NULL");
+        return -1;
+    }
+    if(gpioChip->chipname == NULL){
+        ulog(ERROR,"Chipname cannot be NULL");
+        return -1;
+    }
+    if(gpioChip->consumer == NULL){
+        ulog(ERROR,"Consumer cannot be NULL");
+        return -1;
+    }
+    if(gpioChip->isSetup){
+        ulog(ERROR,"GPIO is already setup");
+        return -1;
+    }
     
-    for(int i=0; i < 28 && err == 0; i++){
-        gpioLines[i] = gpiod_chip_get_line(chip, i);
-        err = (gpioLines[i] == NULL);
-
-        err = gpiod_line_request_output(gpioLines[i], consumer, 0) || err;
-        if(err){
-            ulog(ERROR,"Error initially requesting line for OUTPUT");
-        }
+    gpioChip->chip = gpiod_chip_open_by_name(gpioChip->chipname);
+    if (gpioChip->chip == NULL){
+        ulog(ERROR,"Unable to get chip by name: %s",gpioChip->chipname);
+        return -1;
+    }
+    if(gpioChip->numGPIOLines > MAX_USABLE_GPIO_LINES && gpioChip->numGPIOLines < gpiod_chip_num_lines(gpioChip->chip)){
+        ulog(ERROR,"Invalid Line Count Requested for Chip. Max for Chip: %i",MAX_USABLE_GPIO_LINES);
+        return -1;
+    }
+    if(gpioChip->numGPIOLines >= gpiod_chip_num_lines(gpioChip->chip) || gpioChip->numGPIOLines < 0){
+        ulog(ERROR,"Invalid Number of Lines Requested for Chip. Max: %i",gpiod_chip_num_lines(gpioChip->chip));
+        return -1;
     }
 
+    for(int i=0; i < gpioChip->numGPIOLines && err == 0; i++){
+        gpioChip->gpioLines[i] = gpiod_chip_get_line(gpioChip->chip, i);
+        if(gpioChip->gpioLines[i] == NULL){
+            ulog(ERROR,"Unable to get line: %i",i);
+            err = -1;
+        } else {
+            err = gpiod_line_request_output(gpioChip->gpioLines[i], gpioChip->consumer, 0);
+            if(err){
+                ulog(ERROR,"Error initially requesting line for OUTPUT");
+            }
+        }
+    }
+    if(err != -1){
+        gpioChip->isSetup = 1;
+        gpioChip->numLinesInUse = gpioChip->numGPIOLines;
+    }
+    
     return err;
 }
 
-int setPinModeGPIO(struct gpiod_chip *chip, struct gpiod_line **gpioLines, int gpioLineNumber,int pinMode){
+/* Set the GPIO Pin mode to be INPUT or OUTPUT */
+int setPinModeGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber, int pinMode){
     int err = 0;
+    
+    if(checkConfigGPIO(gpioChip,gpioLineNumber)){
+        return -1;
+    }
 
     if(pinMode == OUTPUT){
         // output
-        err = gpiod_line_set_config(gpioLines[gpioLineNumber],GPIOD_LINE_REQUEST_DIRECTION_OUTPUT,0,0);
+        err = gpiod_line_set_config(gpioChip->gpioLines[gpioLineNumber],GPIOD_LINE_REQUEST_DIRECTION_OUTPUT,0,0);
         if(err){
             ulog(ERROR,"Error requesting OUTPUT");
         }
     } else if(pinMode == INPUT){
         // input
-        err = gpiod_line_set_config(gpioLines[gpioLineNumber],GPIOD_LINE_REQUEST_DIRECTION_INPUT,0,0);
+        err = gpiod_line_set_config(gpioChip->gpioLines[gpioLineNumber],GPIOD_LINE_REQUEST_DIRECTION_INPUT,0,0);
         if(err){
             ulog(ERROR,"Error requesting INPUT");
         }
     } else {
         ulog(ERROR,"Invalid Pin Mode: %i",pinMode);
-        err = 1;
+        err = -1;
     }
     return err;
 }
 
-int writeGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,int value){
-    int err = 0;
-    err = gpiod_line_set_value(gpioLines[gpioLineNumber],value);
-    if(err){
-        ulog(ERROR,"Cound not set value: %i on line number: %i",value,gpioLineNumber);
-    }
-    return err;
-}
-
-int readGPIO(struct gpiod_line **gpioLines,int gpioLineNumber){
+/* Read from a specified GPIO Pin */
+int readGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber){
     int val = 0;
-    val = gpiod_line_get_value(gpioLines[gpioLineNumber]);
-    if( val < 0){
-        ulog(ERROR,"Failed to read input on line %i",gpioLineNumber);
+ 
+    if(checkConfigGPIO(gpioChip,gpioLineNumber)){
+        return -1;
+    }
+
+    if((gpiod_line_direction(gpioChip->gpioLines[gpioLineNumber]) == GPIOD_LINE_DIRECTION_INPUT)){
+        val = gpiod_line_get_value(gpioChip->gpioLines[gpioLineNumber]);
+        if( val == -1){
+            ulog(ERROR,"Failed to read input on Pin %i",gpioLineNumber);
+        }
+    } else {
+        val = -1;
+        ulog(ERROR,"Pin: %i not configured as INPUT. Cannot be read.",gpioLineNumber);
     }
     return val;
 }
 
-
-int cleanupGPIO(struct gpiod_chip *chip,struct gpiod_line **gpioLines){
+/* Write a level to a specified GPIO Pin */
+int writeGPIO(struct GPIO_CHIP* gpioChip,int gpioLineNumber,int level){
     int err = 0;
 
-    for(int i=0; i < 28 && err == 0; i++){
-        if (i != 2 && i != 3){
-            gpiod_line_release(gpioLines[i]);
-        }
+    if(checkConfigGPIO(gpioChip,gpioLineNumber)){
+        return -1;
+    }
+    if(level != 0 && level != 1){
+        ulog(ERROR,"Invalid level %i for line: %i", level,gpioLineNumber);
+        return -1;
     }
 
-    gpiod_chip_close(chip);
+    if((gpiod_line_direction(gpioChip->gpioLines[gpioLineNumber]) == GPIOD_LINE_DIRECTION_OUTPUT)){
+        err = gpiod_line_set_value(gpioChip->gpioLines[gpioLineNumber],level);
+        if(err){
+            ulog(ERROR,"Cound not set level: %i on line number: %i",level,gpioLineNumber);
+        }
+    } else {
+        err = -1;
+        ulog(ERROR,"Pin: %i not configured as OUTPUT. Cannot be written.",gpioLineNumber);
+    }
     return err;
+}
+
+/* Release the chip and GPIO lines */
+void cleanupGPIO(struct GPIO_CHIP* gpioChip){
+    if(gpioChip->isSetup){
+        gpioChip->isSetup = 0;
+        // Releasing the gpioLines may not be needed since I think it's handled by
+        // gpiod_chip_close
+        for(int i=0; i < gpioChip->numLinesInUse; i++){
+            gpiod_line_release(gpioChip->gpioLines[i]);
+        }
+        gpiod_chip_close(gpioChip->chip);
+    }
+    
 }
 
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
 
-int setupI2C(){
+/* Map memory used by GPIO */
+volatile unsigned int* mapGPIOMemory(){
     int  mem_fd;
     void *gpio_map;
-    volatile unsigned *gpio;
 
     /* open /dev/gpiomem */
     if ((mem_fd = open("/dev/gpiomem", O_RDWR|O_SYNC) ) < 0) {
-        ulog(ERROR,"can't open /dev/gpiomem \n");
-        return 1;
+        ulog(ERROR,"Error opening /dev/gpiomem");
+        return (volatile unsigned int*)-1;
     }
 
     /* mmap GPIO */
@@ -135,43 +214,67 @@ int setupI2C(){
 
     if (gpio_map == MAP_FAILED) {
         ulog(ERROR,"mmap error");//errno also set!
-        return 1;
+        return (volatile unsigned int*)-1;
     }
+    return (volatile unsigned int*)gpio_map;
+}
 
+/* Sets up an I2C device to be used via the built in I2C pins */
+int setupI2C(char I2CId){
     // Always use volatile pointer!
-    gpio = (volatile unsigned *)gpio_map;
+    volatile unsigned int* gpio = mapGPIOMemory();
+    if(gpio == (volatile unsigned int*)-1){
+        return -1;
+    }
     
-    INP_GPIO(gpio, SDA_PIN);  // Always use INP_GPIO(x) before using SET_GPIO_ALT(x,y)
-    SET_GPIO_ALT(gpio, SDA_PIN, ALT_FUNC);
-
-    INP_GPIO(gpio, SCL_PIN);  // Always use INP_GPIO(x) before using SET_GPIO_ALT(x,y)
-    SET_GPIO_ALT(gpio, SCL_PIN, ALT_FUNC);
+    setPinAltModeGPIO(gpio, SDA1_PIN, ALT0);
+    setPinAltModeGPIO(gpio, SCL1_PIN, ALT0);
     
-    int fd =  open("/dev/i2c-1", O_RDWR );
-    ioctl(fd, I2C_SLAVE, 0x50);
-    usleep(1000); // Chip Vcc Startup
+    ulog(INFO,"Setting up I2C Device with ID: 0x%02x",I2CId);
+    int fd = open("/dev/i2c-1", O_RDWR );
+    if(fd == -1){
+        ulog(ERROR,"Error opening device.");
+        return -1;
+    }
+    if(ioctl(fd, I2C_SLAVE, I2CId) == -1){
+         ulog(ERROR,"Error configuring device.");
+         return -1;
+    }
+    // Dummy write to make sure device is setup
+    if(write(fd, NULL, 0) != 0){
+        ulog(ERROR,"Device not available");
+        return -1;
+    }
     return fd;
 }
 
-char readByteI2C(int fd, int address){
-    char buf[1] = {address};
-    int err = write(fd,buf,1);
-    err = read(fd,buf,1);
-    if(err == -1){
-        ulog(ERROR,"Cannot read byte at Address: %i",address);
+/* Read from a specified address via I2C */
+int readI2C(int fd, char* buf, int numBytesToRead, int addressSize){
+    int bytesWritten = write(fd, buf, addressSize);
+    if(bytesWritten == -1){
+        ulog(ERROR,"Error reading byte(s) via I2C");
+        return -1;
     }
-    return buf[0];
+    int bytesRead = read(fd,buf,numBytesToRead);
+    if(bytesRead == -1){
+        buf[0] = bytesRead;
+        ulog(ERROR,"Error reading byte(s) via I2C");
+        return -1;
+    }
+    return bytesRead;
 }
 
-char writeByteI2C(int fd, int address, char data){
-    int err = 0;
-    char buf[2] = {address, data};
-
-    err = write(fd,buf,2);
-    usleep(10000);
-    return err;
+/* Write page to a specified address via I2C */
+int writeI2C(int fd, char* data, int numBytesToWrite){
+    // Write the byte[s]
+    int bytesWritten = write(fd, data, numBytesToWrite);
+    if(bytesWritten == -1 && data != NULL && numBytesToWrite != 0){
+        ulog(ERROR,"Error writing byte(s) via I2C");
+    }
+    return bytesWritten;
 }
 
+/* Closes a specified I2C device */
 void cleanupI2C(int fd){
     close(fd);
 }

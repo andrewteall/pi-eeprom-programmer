@@ -1,0 +1,160 @@
+.\" Manpage for piepro.
+.\" Contact https://github.com/andrewteall/pi-eeprom-programmer/issues to correct errors or typos.
+
+.TH piepro 1 "15 Sep 2023" "1.0.0" "User Commands"
+
+.SH NAME
+piepro \- Read and Write EEPROMS via Raspberry pi 4/400 GPIO
+
+.SH SYNOPSIS
+piepro [OPTION]...
+
+.SH DESCRIPTION
+piepro is a program to read and write EEPROMS via Raspberry pi 4/400 GPIO
+
+.SH OPTIONS
+Mandatory arguments to long options are mandatory for short options too.
+
+.I
+.B  -c,  --compare  
+.RS             
+Compare FILE and EEPROM and print number of differences.
+.RE
+
+.I
+.B --chipname      
+.RS
+Specify the chipname to use. Default: gpiochip0
+.RE
+
+.I
+.B  -d,  --dump [N]
+.RS 
+Dump the contents of the EEPROM, 0=PRETTY_WITH_ASCII, 1=BINARY, 2=TEXT, 3=LABELED, 4=PRETTY. Default: PRETTY_WITH_ASCII
+.RE
+
+.I
+.B  -e [N],  --erase [N]
+.RS 
+Erase eeprom with specified byte. Default: 0xFF
+.RE
+
+.I
+.B  -f,  --force
+.RS
+Force writing of every byte instead of checking for existing value first.
+.RE
+
+.I
+.B  -id, --i2c-device-id
+.RS
+The address id of the I2C device.
+.RE
+
+.I
+.B  -h,  --help
+.RS
+Print this message and exit.
+.RE
+
+.I
+.B  -l,  --limit N
+.RS 
+Specify the maximum address to operate.
+.RE
+
+.I
+.B  -m,  --model MODEL
+.RS
+Specify EERPOM device model. Default: AT28C16.
+.RE
+
+.I
+.B       --no-validate-write
+.RS
+Do not perform a read directly after writing to verify the data was written.
+.RE
+
+.I
+.B  -r,  --read [N]
+.RS
+Read the contents of the EEPROM, 0=PRETTY_WITH_ASCII, 1=BINARY, 2=TEXT, 3=LABELED, 4=PRETTY. Default: PRETTY_WITH_ASCII
+.RE
+
+.I
+.B  -rb, --read-byte ADDRESS
+.RS
+Read From specified ADDRESS.
+.RE
+
+.I
+.B  -q [N],  --quick [N]    
+.RS
+Operates on N bytes at once for reads. Page Size if unspecified or writes. Implied --force and --no-validate-write.
+.RE
+
+.I
+.B  -s,  --start N
+.RS
+Specify the minimum address to operate.
+.RE
+
+.I
+.B  -t,  --text
+.RS
+Interpret file as a text. Default: binary
+.RS
+Text File format: 
+[00000000]00000000 00000000
+.RE
+.RE
+
+.I
+.B  -v,  --v[vvvv]
+.RS
+Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG 6=TRACE. Default: WARNING
+.RE
+
+.I
+.B  --version
+.RS
+Print the piepro version and exit.
+.RE
+
+.I
+.B  -w,  --write
+.RS
+Write EEPROM with specified file.
+.RE
+
+.I
+.B  -wb, --write-byte ADDRESS DATA
+.RS
+Write specified DATA to ADDRESS.
+.RE
+
+.I
+.B  -wd, --write-delay
+.RS
+Enable write delay. N Number of microseconds to delay between writes.
+.RE
+
+.I
+.B  -y, --yes
+.RS
+Automatically answer Yes to write or erase EEPROM.
+.RE
+
+.SH NUMBER FORMATTING
+Numbers can be formatted in several ways:
+Decimal: 0-9
+Hexadecimal: 0x0-[fF] or $0-[fF]
+Binary: 00b0-1 or %0-1
+
+.SH QUIRKS
+--no-validate-write has no affect on I2C devices.
+
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Andrew Teall https://github.com/andrewteall/pi-eeprom-programmer/issues

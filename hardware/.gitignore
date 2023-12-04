@@ -1,2 +1,4 @@
 pi-eeprom-programmer-backups
 fp-info-cache
+
+*.kicad_prl

@@ -1,37 +1,188 @@
+################################################################################
+# Global Variables
+################################################################################
+# Compiler
+CC := gcc
+# CC := clang
 
-CC = gcc
-CFLAGS = -Wall
-CFLAGS_DEV = -Wall -g 
+# Output Targets
+TARGET_EXEC := piepro
+TARGET_TEST_EXEC := test_runner_piepro
+TARGET_LIB := libpiepro.so
 
-BIN_DIR = ./bin
-LIB_DIR = ./lib
+# Libraries needed for Linker
+LIBRARIES := gpiod
 
-SRC_PATH = src
-INCLUDE_DIRS = -Iinclude/
-OUT_FILE = piepro
+# Folder Paths
+BIN_DIR := bin/
+LIB_DIR := lib/
+MAN_DIR := man/
+SRC_DIR := src/
+TEST_SRC_DIR := test/
+TEST_DATA_DIR := $(TEST_SRC_DIR)data
+INC_DIR := include/
+BUILD_DIR := build/
 
-DEPS = libgpiod2 libgpiod-dev
+# Lib Build Config
+LIB_EXCLUDE_FILES := main.o
+LIB_EXCLUDE_FILES := $(addprefix $(BUILD_DIR)$(SRC_DIR),$(LIB_EXCLUDE_FILES))
 
+# These libs are needed to run(the former) and to build (the latter)
+# Not used in current Makefile
+DEPS := libgpiod2 libgpiod-dev
+
+################################################################################
+# Environment Variables
+################################################################################
 # PREFIX is environment variable, but if it is not set, then set default value
 ifeq ($(PREFIX),)
     PREFIX := /usr/local
 endif
 
-all: piepro  
+# MAN_PATH is environment variable, but if it is not set, then set default value
+ifeq ($(MAN_PATH),)
+    MAN_PATH := /usr/local/man/man1/
+endif
 
-.PHONY: all clean install uninstall
+################################################################################
+# Flags
+################################################################################
+# Define Include Flags
+INC_FLAGS := $(addprefix -I,$(INC_DIR))
 
-piepro: 
-		if [ ! -d $(BIN_DIR) ]; then mkdir -p $(BIN_DIR);fi
-		$(CC) $(CFLAGS) $(INCLUDE_DIRS) -o $(BIN_DIR)/$(OUT_FILE) $(SRC_PATH)/utils.c $(SRC_PATH)/main.c $(SRC_PATH)/$@.c \
-			$(SRC_PATH)/gpio.c -lgpiod
+# Define Linker Flags
+LDFLAGS := $(addprefix -l,$(LIBRARIES))
 
-clean:
-		if [ -f $(BIN_DIR)/$(OUT_FILE) ]; then rm $(BIN_DIR)/$(OUT_FILE);fi
+# Define Compiler Flags
+CFLAGS := $(INC_FLAGS) -Wall
+CFLAGS_LIB := $(INC_FLAGS) -Wall -shared -fPIC
+CFLAGS_TEST := $(INC_FLAGS) -Wall -Wno-implicit-function-declaration -g -DWITH_COLOR
 
+################################################################################
+# Source and Object Variables
+################################################################################
+# Define all the C files we want to compile
+SRCS := $(shell find $(SRC_DIR) -maxdepth 1 -name '*.c' -printf '%f\n')
+TEST_SRCS := $(shell find $(TEST_SRC_DIR) -maxdepth 1 -name '*.c' -printf '%f\n')
+
+# Define Output objects from Src Groups. 
+# Convert *.c names to *.o and prepend the build path
+OBJS := $(subst .c.o,.o,$(SRCS:%=$(BUILD_DIR)$(SRC_DIR)%.o))
+LIB_OBJS := $(subst .c.o,.o,$(SRCS:%=$(BUILD_DIR)$(LIB_DIR)%.o))
+TEST_OBJS := $(subst .c.o,.o,$(TEST_SRCS:%=$(BUILD_DIR)$(TEST_SRC_DIR)%.o))
+
+################################################################################
+# Object Build
+################################################################################
+# Object step for C source bin
+$(BUILD_DIR)$(SRC_DIR)%.o: $(SRC_DIR)%.c
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+# Object step for C source lib
+$(BUILD_DIR)$(LIB_DIR)%.o: $(SRC_DIR)%.c
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS_LIB) -c $^ -o $@
+
+# Object step for C source test
+$(BUILD_DIR)$(TEST_SRC_DIR)%.o: $(TEST_SRC_DIR)/%.c
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS_TEST) -c $^ -o $@
+
+################################################################################
+# Target Build
+################################################################################
+.PHONY: all
+all: piepro test_runner_piepro libpiepro
+
+.PHONY: piepro
+piepro: $(BIN_DIR)$(TARGET_EXEC)
+
+.PHONY: libpiepro
+libpiepro: $(LIB_DIR)$(TARGET_LIB)
+
+.PHONY: test_runner_piepro
+test_runner_piepro: $(BIN_DIR)$(TARGET_TEST_EXEC)
+
+# Bin Build
+$(BIN_DIR)$(TARGET_EXEC): $(OBJS)
+		mkdir -p $(BIN_DIR)
+		$(CC) -o $(BIN_DIR)$(TARGET_EXEC) $(OBJS) $(LDFLAGS)
+
+# Lib Build
+$(LIB_DIR)$(TARGET_LIB): $(LIB_OBJS)
+		mkdir -p $(LIB_DIR)
+		$(CC) -o $(LIB_DIR)$(TARGET_LIB) $(filter-out $(LIB_EXCLUDE_FILES),$(LIB_OBJS)) $(LDFLAGS)
+
+# Test Build
+$(BIN_DIR)$(TARGET_TEST_EXEC): $(TEST_OBJS) $(OBJS)
+		mkdir -p $(BIN_DIR)
+		$(CC) -o $(BIN_DIR)$(TARGET_TEST_EXEC) $(TEST_OBJS) $(filter-out $(LIB_EXCLUDE_FILES),$(OBJS)) $(LDFLAGS)
+
+################################################################################
+# Test
+################################################################################
+.PHONY: test
+test: test_runner_piepro test_run
+
+.PHONY: test_I2C
+test_I2C: test_runner_piepro test_run_I2C
+
+.PHONY: test_run
+test_run:
+		@echo "Do you have EEPROM_MODEL set?"
+		$(BIN_DIR)$(TARGET_TEST_EXEC) -m $(EEPROM_MODEL) -g
+
+.PHONY: test_run_I2C
+test_run_I2C:
+		@echo "Do you have EEPROM_MODEL set?"
+		$(BIN_DIR)$(TARGET_TEST_EXEC) -i2c -m $(EEPROM_MODEL) -g
+
+################################################################################
+# Install and Clean
+################################################################################
+.PHONY: install-all
+install-all: install install-lib
+
+.PHONY: uninstall-all
+uninstall-all: uninstall uninstall-lib
+
+.PHONY: install
 install:
-		if [ ! -d $(DESTDIR)$(PREFIX)/bin ]; then mkdir -p $(DESTDIR)$(PREFIX)/bin;fi
-		install $(BIN_DIR)/$(OUT_FILE) $(DESTDIR)$(PREFIX)/bin/$(OUT_FILE)
+		mkdir -p $(DESTDIR)$(PREFIX)/$(BIN_DIR)
+		install $(BIN_DIR)$(TARGET_EXEC) $(DESTDIR)$(PREFIX)/$(BIN_DIR)$(TARGET_EXEC)
+		mkdir -p $(MAN_PATH)
+		install -g 0 -o 0 -m 0644 $(MAN_DIR)$(TARGET_EXEC).1 $(MAN_PATH)
+		gzip $(MAN_PATH)$(TARGET_EXEC).1
 
+.PHONY: install-lib
+install-lib:
+		mkdir -p $(DESTDIR)$(PREFIX)/$(LIB_DIR)
+		install $(LIB_DIR)$(TARGET_LIB) $(DESTDIR)$(PREFIX)/$(LIB_DIR)$(TARGET_LIB)
+		mkdir -p $(DESTDIR)$(PREFIX)/$(INC_DIR)
+		install $(INC_DIR)$(TARGET_EXEC).h $(DESTDIR)$(PREFIX)/$(INC_DIR)$(TARGET_EXEC).h
+		ldconfig
+
+.PHONY: uninstall
 uninstall:
-		if [ -f $(DESTDIR)$(PREFIX)/bin/$(OUT_FILE) ]; then rm $(DESTDIR)$(PREFIX)/bin/$(OUT_FILE);fi
+		if [ -f $(DESTDIR)$(PREFIX)/$(BIN_DIR)$(TARGET_EXEC) ]; then rm $(DESTDIR)$(PREFIX)/$(BIN_DIR)$(TARGET_EXEC) ;fi
+		if [ -f $(MAN_PATH)$(TARGET_EXEC).1.gz ]; then rm $(MAN_PATH)$(TARGET_EXEC).1.gz ;fi
+
+.PHONY: uninstall-lib
+uninstall-lib:
+		if [ -f $(DESTDIR)$(PREFIX)/$(LIB_DIR)$(TARGET_LIB) ]; then rm $(DESTDIR)$(PREFIX)/$(LIB_DIR)$(TARGET_LIB) ;fi
+		if [ -f $(DESTDIR)$(PREFIX)/$(INC_DIR)$(TARGET_EXEC).h ]; then rm $(DESTDIR)$(PREFIX)/$(INC_DIR)$(TARGET_EXEC).h ;fi
+		ldconfig
+
+.PHONY: clean
+clean:
+		if [ -f $(BIN_DIR)$(TARGET_EXEC) ]; then rm $(BIN_DIR)$(TARGET_EXEC);fi
+		if [ -f $(LIB_DIR)$(TARGET_LIB) ]; then rm $(LIB_DIR)$(TARGET_LIB);fi
+		if [ -f $(BIN_DIR)$(TARGET_TEST_EXEC) ]; then rm $(BIN_DIR)$(TARGET_TEST_EXEC);fi
+		if [ -d $(BUILD_DIR) ]; then rm -r $(BUILD_DIR);fi
+		if [ -d $(TEST_DATA_DIR) ]; then rm -r $(TEST_DATA_DIR);fi
+
+.PHONY: test_clean
+test_clean:
+		if [ -f $(BIN_DIR)$(TARGET_TEST_EXEC) ]; then rm $(BIN_DIR)$(TARGET_TEST_EXEC);fi
+		if [ -d $(TEST_DATA_DIR) ]; then rm -r $(TEST_DATA_DIR);fi

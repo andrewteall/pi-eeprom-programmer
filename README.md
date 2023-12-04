@@ -60,7 +60,7 @@ I/O2 ->GPIO26 (37) (38) GPIO20        |
           GND (39) (40) GPIO21 ->     | 
    ```
 
-   Alternatively a pcb can be ordered from any of the various manufacturers from the zipped gerbers contained in `hardware/gerbers/pi-eeprom-programmer-v.v.v.zip`.
+   Alternatively a pcb can be ordered from any of the various manufacturers from the zipped gerbers contained in `hardware/manufacturing/pi-eeprom-programmer-v.v.v.zip`.
 
 ### __Installation and Raspberry Pi Setup__
 
@@ -88,45 +88,81 @@ If you've recreated the circuit exactly from above or are using the pcb the IC s
 
 To read an EEPROM, after building the circuit and inserting the IC, run the command
 ```sh
-piepro -d -m MODEL_TYPE
+piepro -d -m EEPROM_MODEL
 ```
-Where MODEL_TYPE is typically the IC's part number such as at28c64, xl2816, at24c02, etc... This will dump the EEPROM's contents to standard out in a pretty format. If you wish to start or limit the addresses dumped you may specify the `-s ADDRESS` or `-l ADDRESS` flags respectively.
+Where EEPROM_MODEL is typically the IC's part number such as at28c64, xl2816, at24c02, etc... This will dump the EEPROM's contents to standard out in a pretty format. If you wish to start or limit the addresses dumped you may specify the `-s ADDRESS` or `-l ADDRESS` flags respectively.
 
 ### __Writing to an EEPROM__
 
 To write to an EEPROM, after building the circuit and inserting the IC, run the command
 ```sh
-piepro -w -m MODEL_TYPE file.bin
+piepro -w file.bin -m EEPROM_MODEL
 ```
-Where MODEL_TYPE is typically the IC's part number such as at28c64, xl2816, at24c02, etc...
+To compare you EEPROM to the file after writing, run the command
+
+```sh
+piepro -c file.bin -m EEPROM_MODEL
+```
+Where EEPROM_MODEL is typically the IC's part number such as at28c64, xl2816, at24c02, etc...
 
 #### __A Quick Note About EEPROM Voltages__
 Most modern EERPOMs will work but if you're using an obscure EEPROM you need to makes sure it can operate on 5v Vcc and 3.3v levels if it's a parallel EEPROM and 3.3v Vcc and 3.3v levels if it's a serial EEPROM.
 
 ## __Command Line Options__
 ```
-Usage: piepro [options] [file]
+Usage: piepro [options]
 Options:
- -b,        --board         Specify the SoC board used. Default: Raspberry Pi 4/400
- -c,        --compare       Compare file and EEPROM and print differences.
- -d N,      --dump N        Dump the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.
+ -c FILE,   --compare FILE  Compare FILE and EEPROM and print number of differences.
+            --chipname      Specify the chipname to use. Default: gpiochip0
+ -d [N],    --dump [N]      Dump the contents of the EEPROM, 
+                            0=PRETTY_WITH_ASCII, 1=BINARY, 2=TEXT, 3=LABELED, 4=PRETTY. Default: PRETTY_WITH_ASCII
+ -e [N],    --erase [N]     Erase eeprom with specified byte. Default: 0xFF
  -f,        --force         Force writing of every byte instead of checking for existing value first.
- -i FILE,   --image FILE    The Filename to use.
- -id,       --i2c-device-id The Address id of the I2C device.
+ -id,       --i2c-device-id The address id of the I2C device.
  -h,        --help          Print this message and exit.
  -l N,      --limit N       Specify the maximum address to operate.
-            --no-validate-write Do not perform a read directly after writing to verify the data was written.
  -m MODEL,  --model MODEL   Specify EERPOM device model. Default: AT28C16.
- -r N,      --read ADDRESS  Read the contents of the EEPROM, 0=DEFAULT, 1=BINARY, 2=TEXT, 3=PRETTY.
- -rb N,     --read-byte ADDRESS  Read From specified ADDRESS.
+            --no-validate-write 
+                            Do not perform a read directly after writing to verify the data was written.
+ -r [N],    --read [N]      Read the contents of the EEPROM, 
+                            0=PRETTY_WITH_ASCII, 1=BINARY, 2=TEXT, 3=LABELED, 4=PRETTY. Default: PRETTY_WITH_ASCII
+ -rb N,     --read-byte ADDRESS 
+                            Read From specified ADDRESS.
+ -q [N],     --quick [N]    Operates on N bytes at once for reads. Page Size if unspecified or writes. 
+                            Implied --force and --no-validate-write.
  -s N,      --start N       Specify the minimum address to operate.
- -t,        --text          Interpret file as a binary. Default: binary
+ -t,        --text          Interpret file as a text. Default: binary
                             Text File format:
                             [00000000]00000000 00000000
- -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG.
- -w,        --write         Write EEPROM with specified file.
- -wb ADDRESS DATA, --write-byte ADDRESS DATA    Write specified DATA to ADDRESS.
- -wd N,     --write-delay N Number of microseconds to delay between writes.
+ -v N,      --v[vvvv]       Set the log verbosity to N, 0=OFF, 1=FATAL, 2=ERROR, 3=WARNING, 4=INFO, 5=DEBUG 6=TRACE. Default: WARNING
+            --version       Print the piepro version and exit.
+ -w FILE,   --write FILE    Write EEPROM with specified file.
+ -wb ADDRESS DATA, --write-byte ADDRESS DATA 
+                            Write specified DATA to ADDRESS.
+ -wd [N],   --write-delay N Enable write delay. N Number of microseconds to delay between writes.
+ -y,        --yes           Automatically answer Yes to write or erase EEPROM.
+
+
+ Supported and tested Models:
+        Note that the program may work if your EEPROM uses a similar pinout and
+        voltages to the ones listed.
+ Model       Size(B)  Addr Len  Data Len   Write Cycle(uS)  Page Size(B) Address Size(B)
+----------------------------------------------------------------------------------------
+xl2816        2048       11         8          10000            16             0
+xl28c16       2048       11         8          10000            16             0
+at28c16       2048       11         8           5000            16             0
+at28c64       8192       13         8          10000            16             0
+at28c256     32768       15         8           1000            64             0
+at24c01        128        7         8           5000             8             1
+at24c02        256        8         8           5000             8             1
+at24c04        512        9         8           5000            16             2
+at24c08       1024       10         8           5000            16             2
+at24c16       2048       11         8           5000            16             2
+at24c32       4096       12         8           5000            32             2
+at24c64       8192       13         8           5000            32             2
+at24c128     16384       14         8           5000            64             2
+at24c256     32768       15         8           5000            64             2
+at24c512     65536       16         8           5000           128             2
  ```
 
  ## __Features, Bugs, and Contributing__
@@ -134,4 +170,4 @@ If there's anything you'd like to add or find a bug please open an [issue](https
 
 
 ## __License__
-This project is licensed under the [MIT License](../LICENSE). You are free to use, modify, and distribute the project according to the terms of the license.
+This repository is licensed under the [MIT-0 License](LICENSE) for everything not contained in the hardware folder and it's sub folders. For all files and folders in the hardware folder and it's sub folders, they are licensed under [CC0](https://creativecommons.org/publicdomain/zero/1.0/). You are free to use, modify, and distribute the project according to the terms of these licenses.

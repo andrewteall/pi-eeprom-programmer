@@ -1,0 +1,5 @@
+"Id";"Designator";"Package";"Quantity";"Designation";"Supplier and ref";
+1;"J1";"PinSocket_2x20_P2.54mm_Horizontal";1;"Raspberry Pi GPIO Connector";;;
+2;"U1";"DIP-28_W15.24mm_Socket";1;"ZIF Socket";;;
+3;"U2";"DIP-8_W7.62mm_Socket";1;"24C01-24C1024";;;
+4;"J2";"PinHeader_1x03_P2.54mm_Vertical";1;"Conn_01x03";;;

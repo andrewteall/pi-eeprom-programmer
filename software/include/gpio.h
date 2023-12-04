@@ -1,26 +1,102 @@
 #ifndef GPIO_H
     #define GPIO_H 1
-    #include <gpiod.h>
+
+    /**
+     * @brief Levels used by GPIO.
+     */
+    enum LEVEL {LOW=0, HIGH};
+
+    /**
+     * @brief Pin Modes used by GPIO.
+     */
+    enum PIN_MODE {INPUT=0, OUTPUT};
+
+    struct GPIO_CHIP{
+        // GPIO
+        int isSetup;
+        int numLinesInUse;
+        struct gpiod_chip* chip;
+        struct gpiod_line* gpioLines[40];
+        
+        int numGPIOLines;
+        char *chipname;
+        char *consumer;
+        
+        // I2C
+        int isI2CSetup;
+        int fd;
+    };
+
+    /**
+     * @brief Setups Raspberry Pi GPIO Pins.
+     *        Must be called before any GPIO is used.
+     * @param *gpioChip Pointer to the GPIO_CHIP struct to be used
+     * @return int 0 if successful -1 if any error occurs.
+     */
+    int setupGPIO(struct GPIO_CHIP* gpioChip);
+
+    /**
+     * @brief Set GPIO Pins to input or output.
+     * @param *gpioChip Pointer to the GPIO_CHIP struct to be used
+     * @param gpioLineNumber the GPIO number to be control direction.
+     * @param direction The mode of the GPIO Pin. INPUT or OUTPUT
+     * @return int 0 if successful -1 if any error occurs.
+     */
+    int setPinModeGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber, int direction);
+
+    /**
+     * @brief Read the value of the specified GPIO Pin.
+     * @param *gpioChip Pointer to the GPIO_CHIP struct to be used
+     * @param gpioLineNumber the GPIO number to be read from.
+     * @return int 0 if successful -1 if any error occurs.
+     */
+    int readGPIO(struct GPIO_CHIP* gpioChip, int gpioLineNumber);
+
+    /**
+     * @brief Write the value to the specified GPIO Pin.
+     * @param *gpioChip Pointer to the GPIO_CHIP struct to be used
+     * @param gpioLineNumber the GPIO number to be written to.
+     * @param level The value to write. HIGH or LOW.
+     * @return int 0 if successful -1 or non-zero if any error occurs.
+     */
+    int writeGPIO(struct GPIO_CHIP* gpioChip,int gpioLineNumber,int level);
     
-    #define LOW 0
-    #define HIGH 1
-    #define INPUT 0
-    #define OUTPUT 1
+    /**
+     * @brief Releases a gpiod_chip and an array of gpiod_lines.
+     * @param *gpioChip Pointer to the GPIO_CHIP struct to be used
+     */
+    void cleanupGPIO(struct GPIO_CHIP* gpioChip);
 
-    int setupGPIO(struct gpiod_chip *chip, char* chipname, struct gpiod_line **gpioLines,char* consumer);
+    /**
+     * @brief Sets up GPIO pins to use the dedicated I2C function.
+     * @param I2CId The address of the I2C device. Default 0x50.
+     * @return int The file descriptor of the I2C device. -1 if error.
+     */
+    int setupI2C(char I2CId);
 
-    int cleanupGPIO(struct gpiod_chip *chip,struct gpiod_line **gpioLines);
+    /**
+     * @brief Reads a byte via the I2C bus.
+     * @param fd The file descriptor of the I2C device to be used.
+     * @param buf* Buffer for the bytes that are read.
+     * @param numBytesToRead The number of bytes to read including the address.
+     * @param addressSize The number of bytes of the address.
+     * @return int Number of bytes read from the I2C device or -1 if error.
+     */
+    int readI2C(int fd, char* buf, int numBytesToRead, int addressSize);
+    
+    /**
+     * @brief Writes a byte via the I2C bus.
+     * @param fd The file descriptor of the I2C device to be used.
+     * @param data* The data to be written.
+     * @param numBytesToWrite The number of bytes to write including the address.
+     * @return int number of bytes writen if successful -1 if any error occurs.
+     */
+    int writeI2C(int fd, char* data, int numBytesToWrite);
 
-    int setPinModeGPIO(struct gpiod_chip *chip, struct gpiod_line **gpioLines, int gpioLineNumber,int direction);
-
-    int writeGPIO(struct gpiod_line **gpioLines,int gpioLineNumber,int value);
-
-    int readGPIO(struct gpiod_line **gpioLines,int gpioLineNumber);
-
-
-    int setupI2C();
+    /**
+     * @brief Closes the specified File Descriptor(fd).
+     * @param int The file descriptor of the I2C device to be closed.
+     */
     void cleanupI2C(int fd);
-    char readByteI2C(int fd, int address);
-    char writeByteI2C(int fd, int address, char data);
 
 #endif

@@ -20,11 +20,25 @@ See [Quick Start](../README.md#quick-start)
 See [Flags](../README.md#command-line-options)
 
 ## __Quirks__
-Right now the -d and --dump flags don't neccessarily need a format. A warning will be printed but can be ignored as the EEPROM dump will still be pretty printed. 
+--no-validate-write has no affect on I2C devices.
+
+## __Updating__
+Updates can be performed by just running
+```sh
+make install
+```
+and the new version will be installed over the existing verison. 
+
+## __Uninstall__
+To uninstall just run 
+```sh
+make uninstall
+```
+from your source code directory.
 
 ## __Features, Bugs, and Contributing__
 If there's anything you'd like to add or find a bug please open an [issue](https://github.com/andrewteall/pi-eeprom-programmer/issues). If you'd like to implement those chages yourself please feel free to open a PR or fork the repository and make it your own.
 
 
 ## __License__
-This project is licensed under the [MIT License](../LICENSE). You are free to use, modify, and distribute the project according to the terms of the license.
+This software project is licensed under the [MIT-0 License](LICENSE). You are free to use, modify, and distribute the project according to the terms of the license.
