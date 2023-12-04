@@ -5,9 +5,9 @@
   (paper "A4")
 
   (title_block
-    (title "Pi EEProm Programmer")
-    (date "2023-08-20")
-    (rev "0.9.2")
+    (title "Pi EEPROM Programmer")
+    (date "2023-12-04")
+    (rev "1.0.0")
   )
 
   (lib_symbols
