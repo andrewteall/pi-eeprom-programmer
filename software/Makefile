@@ -7,7 +7,7 @@ CC := gcc
 
 # Output Targets
 TARGET_EXEC := piepro
-TARGET_TEST_EXEC := test_runner_piepro
+TARGET_TEST_EXEC := test_harness_piepro
 TARGET_LIB := libpiepro.so
 
 # Libraries needed for Linker
@@ -19,7 +19,6 @@ LIB_DIR := lib/
 MAN_DIR := man/
 SRC_DIR := src/
 TEST_SRC_DIR := test/
-TEST_DATA_DIR := $(TEST_SRC_DIR)data
 INC_DIR := include/
 BUILD_DIR := build/
 
@@ -56,7 +55,7 @@ LDFLAGS := $(addprefix -l,$(LIBRARIES))
 # Define Compiler Flags
 CFLAGS := $(INC_FLAGS) -Wall
 CFLAGS_LIB := $(INC_FLAGS) -Wall -shared -fPIC
-CFLAGS_TEST := $(INC_FLAGS) -Wall -Wno-implicit-function-declaration -g -DWITH_COLOR
+CFLAGS_TEST := $(INC_FLAGS) -Wall -DWITH_COLOR
 
 ################################################################################
 # Source and Object Variables
@@ -93,7 +92,7 @@ $(BUILD_DIR)$(TEST_SRC_DIR)%.o: $(TEST_SRC_DIR)/%.c
 # Target Build
 ################################################################################
 .PHONY: all
-all: piepro test_runner_piepro libpiepro
+all: piepro test_harness_piepro libpiepro
 
 .PHONY: piepro
 piepro: $(BIN_DIR)$(TARGET_EXEC)
@@ -101,8 +100,8 @@ piepro: $(BIN_DIR)$(TARGET_EXEC)
 .PHONY: libpiepro
 libpiepro: $(LIB_DIR)$(TARGET_LIB)
 
-.PHONY: test_runner_piepro
-test_runner_piepro: $(BIN_DIR)$(TARGET_TEST_EXEC)
+.PHONY: test_harness_piepro
+test_harness_piepro: $(BIN_DIR)$(TARGET_TEST_EXEC)
 
 # Bin Build
 $(BIN_DIR)$(TARGET_EXEC): $(OBJS)
@@ -123,20 +122,18 @@ $(BIN_DIR)$(TARGET_TEST_EXEC): $(TEST_OBJS) $(OBJS)
 # Test
 ################################################################################
 .PHONY: test
-test: test_runner_piepro test_run
+test: test_harness_piepro test_run
 
 .PHONY: test_I2C
-test_I2C: test_runner_piepro test_run_I2C
+test_I2C: test_harness_piepro test_run_I2C
 
 .PHONY: test_run
 test_run:
-		echo "Do you have EEPROM_MODEL set?"
-		$(BIN_DIR)$(TARGET_TEST_EXEC) -m $(EEPROM_MODEL) -g
+		$(BIN_DIR)$(TARGET_TEST_EXEC)
 
 .PHONY: test_run_I2C
 test_run_I2C:
-		echo "Do you have EEPROM_MODEL set?"
-		$(BIN_DIR)$(TARGET_TEST_EXEC) -i2c -m $(EEPROM_MODEL) -g
+		$(BIN_DIR)$(TARGET_TEST_EXEC) 1
 
 ################################################################################
 # Install and Clean
@@ -180,9 +177,7 @@ clean:
 		if [ -f $(LIB_DIR)$(TARGET_LIB) ]; then rm $(LIB_DIR)$(TARGET_LIB);fi
 		if [ -f $(BIN_DIR)$(TARGET_TEST_EXEC) ]; then rm $(BIN_DIR)$(TARGET_TEST_EXEC);fi
 		if [ -d $(BUILD_DIR) ]; then rm -r $(BUILD_DIR);fi
-		if [ -d $(TEST_DATA_DIR) ]; then rm -r $(TEST_DATA_DIR);fi
 
 .PHONY: test_clean
 test_clean:
 		if [ -f $(BIN_DIR)$(TARGET_TEST_EXEC) ]; then rm $(BIN_DIR)$(TARGET_TEST_EXEC);fi
-		if [ -d $(TEST_DATA_DIR) ]; then rm -r $(TEST_DATA_DIR);fi
