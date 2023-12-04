@@ -130,12 +130,12 @@ test_I2C: test_runner_piepro test_run_I2C
 
 .PHONY: test_run
 test_run:
-		echo "Do you have EEPROM_MODEL set?"
+		@echo "Do you have EEPROM_MODEL set?"
 		$(BIN_DIR)$(TARGET_TEST_EXEC) -m $(EEPROM_MODEL) -g
 
 .PHONY: test_run_I2C
 test_run_I2C:
-		echo "Do you have EEPROM_MODEL set?"
+		@echo "Do you have EEPROM_MODEL set?"
 		$(BIN_DIR)$(TARGET_TEST_EXEC) -i2c -m $(EEPROM_MODEL) -g
 
 ################################################################################
