@@ -88,22 +88,22 @@ If you've recreated the circuit exactly from above or are using the pcb the IC s
 
 To read an EEPROM, after building the circuit and inserting the IC, run the command
 ```sh
-piepro -d -m MODEL_TYPE
+piepro -d -m EEPROM_MODEL
 ```
-Where MODEL_TYPE is typically the IC's part number such as at28c64, xl2816, at24c02, etc... This will dump the EEPROM's contents to standard out in a pretty format. If you wish to start or limit the addresses dumped you may specify the `-s ADDRESS` or `-l ADDRESS` flags respectively.
+Where EEPROM_MODEL is typically the IC's part number such as at28c64, xl2816, at24c02, etc... This will dump the EEPROM's contents to standard out in a pretty format. If you wish to start or limit the addresses dumped you may specify the `-s ADDRESS` or `-l ADDRESS` flags respectively.
 
 ### __Writing to an EEPROM__
 
 To write to an EEPROM, after building the circuit and inserting the IC, run the command
 ```sh
-piepro -w file.bin -m MODEL_TYPE
+piepro -w file.bin -m EEPROM_MODEL
 ```
 To compare you EEPROM to the file after writing, run the command
 
 ```sh
-piepro -c file.bin -m MODEL_TYPE
+piepro -c file.bin -m EEPROM_MODEL
 ```
-Where MODEL_TYPE is typically the IC's part number such as at28c64, xl2816, at24c02, etc...
+Where EEPROM_MODEL is typically the IC's part number such as at28c64, xl2816, at24c02, etc...
 
 #### __A Quick Note About EEPROM Voltages__
 Most modern EERPOMs will work but if you're using an obscure EEPROM you need to makes sure it can operate on 5v Vcc and 3.3v levels if it's a parallel EEPROM and 3.3v Vcc and 3.3v levels if it's a serial EEPROM.
