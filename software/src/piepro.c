@@ -293,11 +293,11 @@ void setEEPROMParameters(struct OPTIONS* options, struct EEPROM* eeprom){
 
 	eeprom->useWriteCyclePolling = options->useWriteCyclePolling;
 	
-	eeprom->size = EEPROM_MODEL_SIZE[options->eepromModel];
-	eeprom->maxAddressLength = EEPROM_ADDRESS_LENGTH[options->eepromModel];
-	eeprom->maxDataLength = (EEPROM_DATA_LENGTH[options->eepromModel]);
-	eeprom->pageSize = EEPROM_PAGE_SIZE[options->eepromModel];
-	eeprom->addressSize = EEPROM_ADDRESS_SIZE[options->eepromModel];
+	eeprom->size = EEPROM_MODEL_SIZE[eeprom->model];
+	eeprom->maxAddressLength = EEPROM_ADDRESS_LENGTH[eeprom->model];
+	eeprom->maxDataLength = (EEPROM_DATA_LENGTH[eeprom->model]);
+	eeprom->pageSize = EEPROM_PAGE_SIZE[eeprom->model];
+	eeprom->addressSize = EEPROM_ADDRESS_SIZE[eeprom->model];
 	eeprom->quick = options->quick;
 	if( options->readChunk == -1 || options->readChunk == 0){
 		eeprom->readChunk = eeprom->pageSize;
@@ -306,13 +306,13 @@ void setEEPROMParameters(struct OPTIONS* options, struct EEPROM* eeprom){
 	}
 	
 	if( options->writeCycleUSec == -1 || options->writeCycleUSec == 0){
-		eeprom->writeCycleTime = EEPROM_WRITE_CYCLE_USEC[options->eepromModel];
+		eeprom->writeCycleTime = EEPROM_WRITE_CYCLE_USEC[eeprom->model];
 	}else{
     	eeprom->writeCycleTime = options->writeCycleUSec;
 	}
 
 	if( options->limit == -1){
-		eeprom->limit = EEPROM_MODEL_SIZE[options->eepromModel];
+		eeprom->limit = EEPROM_MODEL_SIZE[eeprom->model];
 	}else{
     	eeprom->limit = options->limit;
 	}
@@ -344,6 +344,10 @@ void setGPIOConfigParameters(struct OPTIONS* options, struct GPIO_CONFIG* gpioCo
 
 /* Initialize Raspberry Pi to perform action on EEPROM */
 int initHardware(struct OPTIONS *options, struct EEPROM *eeprom, struct GPIO_CONFIG* gpioConfig){
+	if(options->eepromModel == END){
+		ulog(ERROR,"EEPROM model must be specified.");
+		return -1;
+	}
 	setEEPROMParameters(options, eeprom);
 	ulog(DEBUG,"Starting GPIO Initialization");
 	setGPIOConfigParameters(options, gpioConfig);
@@ -1228,7 +1232,7 @@ void setDefaultOptions(struct OPTIONS* options){
     options->force = 0;
     options->action = NOTHING;
     options->fileType = BINARY_FILE;
-    options->eepromModel = AT28C16;
+    options->eepromModel = END;
     options->writeCycleUSec = -1;
 	options->useWriteCyclePolling = 1;
 	options->boardType = RPI4;
